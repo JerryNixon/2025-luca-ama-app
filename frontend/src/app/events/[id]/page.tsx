@@ -54,13 +54,18 @@ export default function EventDetailsPage() {
   // Role-based permissions
   const isModerator = user?.role === 'moderator';
   const isPresenter = user?.role === 'presenter';
-  const canModerate = isModerator || isPresenter;
-  /**
+  const canModerate = isModerator || isPresenter;  /**
    * Load event data and questions
    */
   useEffect(() => {
     if (!isAuthenticated) {
       router.push('/login');
+      return;
+    }
+
+    // Route users to the user-specific view
+    if (user?.role === 'user') {
+      router.push(`/events/${eventId}/user`);
       return;
     }
 
@@ -71,7 +76,7 @@ export default function EventDetailsPage() {
     }
 
     loadEventData();
-  }, [eventId, isAuthenticated, canModerate, router]);
+  }, [eventId, isAuthenticated, canModerate, user?.role, router]);
 
   /**
    * Filter questions based on active tab
