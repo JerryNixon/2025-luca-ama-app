@@ -1,38 +1,57 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Global Styles - Main stylesheet for the Luca AMA App */
+/* This file imports Tailwind CSS and defines custom component styles */
 
-/* Global styles */
+/* Import Tailwind CSS base styles, components, and utilities */
+@tailwind base;        /* Normalize and base HTML element styles */
+@tailwind components;  /* Reusable component classes */
+@tailwind utilities;   /* Utility classes for quick styling */
+
+/* 
+ * Global HTML Element Styles
+ * Reset browser defaults and set consistent typography
+ */
 html,
 body {
   padding: 0;
   margin: 0;
+  /* Modern font stack prioritizing system fonts for better performance */
   font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
     Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
 }
 
+/* Remove default link styling */
 a {
   color: inherit;
   text-decoration: none;
 }
 
+/* Ensure consistent box model across all elements */
 * {
   box-sizing: border-box;
 }
 
-/* Custom component styles */
+/* 
+ * Custom Component Styles
+ * Reusable CSS classes built with Tailwind utilities
+ * These provide consistent styling across the application
+ */
+
+/* Primary button style - main action buttons */
 .btn-primary {
   @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
 }
 
+/* Secondary button style - alternative actions */
 .btn-secondary {
   @apply bg-secondary-100 hover:bg-secondary-200 text-secondary-700 font-medium py-2 px-4 rounded-lg transition-colors duration-200;
 }
 
+/* Card component style - content containers */
 .card {
   @apply bg-white rounded-lg shadow-md border border-gray-200 p-6;
 }
 
+/* Input field style - form inputs with focus states */
 .input-field {
   @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
 }

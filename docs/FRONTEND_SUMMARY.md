@@ -24,32 +24,33 @@ The application supports three distinct roles with appropriate permissions:
 
 ## 📁 Project Structure
 ```
-src/
-├── app/                    # Next.js App Router pages
-│   ├── layout.tsx         # Root layout with AuthProvider
-│   ├── page.tsx           # Dashboard home page
-│   ├── login/
-│   │   └── page.tsx       # Authentication page
-│   └── events/
-│       └── page.tsx       # Events listing page
-├── components/
-│   ├── events/
-│   │   └── EventCard.tsx  # Event display component
-│   └── questions/
-│       └── QuestionCard.tsx # Question display with actions
-├── contexts/
-│   └── AuthContext.tsx    # Authentication state management
-├── services/              # API service layer (ready for backend)
-│   ├── authService.ts     # Authentication API calls
-│   ├── eventService.ts    # Event management API calls
-│   └── questionService.ts # Question management API calls
-├── types/
-│   └── index.ts           # TypeScript interfaces
-├── lib/
-│   ├── api.ts             # Axios configuration
-│   └── demoData.ts        # Demo data for development
-└── styles/
-    └── globals.css        # Tailwind CSS setup
+frontend/
+└── src/
+    ├── app/                    # Next.js App Router pages
+    │   ├── layout.tsx         # Root layout with AuthProvider
+    │   ├── page.tsx           # Dashboard home page
+    │   ├── login/
+    │   │   └── page.tsx       # Authentication page
+    │   └── events/
+    │       └── page.tsx       # Events listing page
+    ├── components/
+    │   ├── events/
+    │   │   └── EventCard.tsx  # Event display component
+    │   └── questions/
+    │       └── QuestionCard.tsx # Question display with actions
+    ├── contexts/
+    │   └── AuthContext.tsx    # Authentication state management
+    ├── services/              # API service layer (ready for backend)
+    │   ├── authService.ts     # Authentication API calls
+    │   ├── eventService.ts    # Event management API calls
+    │   └── questionService.ts # Question management API calls
+    ├── types/
+    │   └── index.ts           # TypeScript interfaces
+    ├── lib/
+    │   ├── api.ts             # Axios configuration
+    │   └── demoData.ts        # Demo data for development
+    └── styles/
+        └── globals.css        # Tailwind CSS setup
 ```
 
 ## 🚀 Getting Started
@@ -174,6 +175,9 @@ const USE_DEMO_DATA = false;
 ## 🛠️ Development Commands
 
 ```bash
+# Navigate to frontend folder first
+cd frontend
+
 # Start development server
 npm run dev
 

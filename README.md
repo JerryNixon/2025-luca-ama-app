@@ -8,16 +8,28 @@ A modern full-stack application for managing Ask Me Anything (AMA) sessions duri
 luca-ama-app/
 ├── frontend/              # Next.js React application
 │   ├── src/              # Source code
+│   │   ├── app/          # Next.js App Router pages
+│   │   ├── components/   # Reusable UI components
+│   │   ├── contexts/     # React contexts
+│   │   ├── services/     # API service layer
+│   │   ├── types/        # TypeScript definitions
+│   │   ├── lib/          # Utilities and config
+│   │   └── styles/       # Global styles
 │   ├── package.json      # Frontend dependencies
-│   └── ...config files   # Next.js, TypeScript, Tailwind
+│   ├── next.config.js    # Next.js configuration
+│   ├── tailwind.config.js # Tailwind CSS config
+│   ├── tsconfig.json     # TypeScript config
+│   └── README.md         # Frontend documentation
 ├── backend/              # Django REST API (to be implemented)
 │   ├── requirements.txt  # Python dependencies
-│   ├── manage.py         # Django management
-│   └── apps/             # Django applications
+│   └── README.md         # Backend documentation
 ├── docs/                 # Project documentation
-│   ├── FRONTEND_SUMMARY.md
+│   ├── FRONTEND_SUMMARY.md # Complete frontend overview
 │   ├── API_SPEC.md       # API documentation
-│   └── USER_STORIES.md   # Persona requirements
+│   ├── USER_STORIES.md   # Persona requirements
+│   ├── DEVELOPMENT.md    # Development guide
+│   └── PROJECT_COMPLETE.md # Project completion status
+├── .vscode/              # VS Code workspace settings
 ├── .git/                 # Git repository
 ├── .gitignore           # Git ignore rules
 ├── README.md            # This file
