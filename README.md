@@ -1,6 +1,3 @@
 # 2025-luca-ama-app
 # Luca AMA App
-"anything"
-"anyway"
-"try again"
-ss
+"test 20"
