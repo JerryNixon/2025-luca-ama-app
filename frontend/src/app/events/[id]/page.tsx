@@ -333,59 +333,80 @@ export default function EventDetailsPage() {
       </div>
     );
   }
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{event.name}</h1>
-              <p className="text-gray-600 mt-1">{filteredQuestions.length} questions</p>
+      {/* Navigation Bar - Consistent with other pages */}
+      <nav className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-semibold text-gray-900">Luca AMA App</h1>
             </div>
             <div className="flex items-center space-x-4">
-              {canModerate && (
-                <button
-                  onClick={() => setShowModeratorsOnly(!showModeratorsOnly)}
-                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                    showModeratorsOnly
-                      ? 'bg-primary-50 border-primary-200 text-primary-700'
-                      : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  Hide All
-                </button>
-              )}
+              <span className="text-sm text-gray-700">Welcome, {user?.name}</span>
+              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                {user?.role}
+              </span>
               <button
                 onClick={() => router.push('/events')}
-                className="text-gray-600 hover:text-gray-900"
+                className="text-gray-600 hover:text-gray-900 text-sm"
               >
                 ← Back to Events
               </button>
             </div>
           </div>
         </div>
+      </nav>
+
+      {/* Page Header */}
+      <div className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">{event.name}</h1>
+              <p className="text-gray-600 mt-2">
+                Manage questions and moderate the AMA session • {filteredQuestions.length} questions
+              </p>
+            </div>
+            {canModerate && (
+              <button
+                onClick={() => setShowModeratorsOnly(!showModeratorsOnly)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  showModeratorsOnly
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {showModeratorsOnly ? 'Show All Questions' : 'Moderator View Only'}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Tab Navigation */}
+      {/* Tab Navigation - Clean Microsoft style */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-0">
+          <div className="flex space-x-8">
             {[
-              { key: 'all', label: 'TAB: ALL', color: 'bg-blue-600' },
-              { key: 'answered', label: 'TAB: ANSWERED', color: 'bg-blue-600' },
-              { key: 'starred', label: 'TAB: STARRED', color: 'bg-green-600' },
-              { key: 'stage', label: 'TAB: STAGE', color: 'bg-green-600' }
+              { key: 'all', label: 'All Questions', count: questions.length },
+              { key: 'answered', label: 'Answered', count: questions.filter(q => q.isAnswered).length },
+              { key: 'starred', label: 'Starred', count: questions.filter(q => q.isStarred).length },
+              { key: 'stage', label: 'On Stage', count: questions.filter(q => q.isOnStage).length }
             ].map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveFilter(tab.key as QuestionFilter)}
-                className={`px-6 py-3 text-sm font-medium text-white transition-colors ${
-                  activeFilter === tab.key ? tab.color : 'bg-gray-500 hover:bg-gray-600'
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeFilter === tab.key
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
                 {tab.label}
+                <span className="ml-2 bg-gray-100 text-gray-900 py-0.5 px-2 rounded-full text-xs">
+                  {tab.count}
+                </span>
               </button>
             ))}
           </div>
@@ -393,43 +414,37 @@ export default function EventDetailsPage() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Filter Bar */}
-        <div className="flex items-center justify-between mb-6">
-          <button className="bg-orange-500 text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2">
-            <FiFilter className="w-4 h-4" />
-            FILTER
-          </button>
-          
-          {/* Action Buttons */}
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center bg-yellow-100 text-yellow-800 px-3 py-2 rounded-lg">
-              <FiArrowUp className="w-4 h-4 mr-1" />
-              <span className="font-semibold">10</span>
-              <span className="ml-1 text-sm">Vote</span>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Quick Actions Bar */}
+        {canModerate && (
+          <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
+              <div className="flex items-center space-x-3">
+                <div className="text-sm text-gray-600">
+                  Selected questions will be affected by these actions
+                </div>
+                <button className="btn-secondary text-sm">
+                  Bulk Star
+                </button>
+                <button className="btn-secondary text-sm">
+                  Bulk Stage
+                </button>
+                <button className="btn-primary text-sm">
+                  Mark Answered
+                </button>
+              </div>
             </div>
-            <button className="flex items-center bg-yellow-100 text-yellow-800 px-3 py-2 rounded-lg">
-              <FiStar className="w-4 h-4 mr-1" />
-              <span className="text-sm">Star</span>
-            </button>
-            <button className="flex items-center bg-blue-100 text-blue-800 px-3 py-2 rounded-lg">
-              <FiArrowUp className="w-4 h-4 mr-1" />
-              <span className="text-sm">Stage</span>
-            </button>
-            <button className="flex items-center bg-green-100 text-green-800 px-3 py-2 rounded-lg">
-              <FiCheck className="w-4 h-4 mr-1" />
-              <span className="text-sm">Answered</span>
-            </button>
-            <button className="flex items-center bg-gray-100 text-gray-800 px-3 py-2 rounded-lg">
-              <FiTrash2 className="w-4 h-4 mr-1" />
-            </button>
           </div>
-        </div>
+        )}
 
         {/* Questions List */}
         <div className="space-y-4">
           {filteredQuestions.length === 0 ? (
-            <div className="text-center py-12">
+            <div className="text-center py-12 bg-white rounded-lg shadow-sm border">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">❓</span>
+              </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">No questions found</h3>
               <p className="text-gray-600">
                 {activeFilter === 'all' 
@@ -440,64 +455,107 @@ export default function EventDetailsPage() {
             </div>
           ) : (
             filteredQuestions.map((question) => (
-              <div key={question.id} className="bg-white border rounded-lg">
-                {/* Question Header - Stage indicator */}
+              <div key={question.id} className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow">
+                {/* Question Header - On Stage indicator */}
                 {question.isOnStage && (
-                  <div className="flex items-center bg-green-50 px-4 py-2 border-b">
-                    <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center mr-2">
-                      <FiEye className="w-4 h-4 text-blue-600" />
+                  <div className="bg-primary-50 border-b px-6 py-3">
+                    <div className="flex items-center">
+                      <div className="w-2 h-2 bg-primary-500 rounded-full mr-2"></div>
+                      <span className="text-sm font-medium text-primary-700">Currently on stage</span>
                     </div>
-                    <span className="text-sm text-green-700 font-medium">On Stage</span>
                   </div>
                 )}
 
                 {/* Question Content */}
-                <div className="p-4">
-                  <div className="flex items-start space-x-4">
-                    {/* Vote Button */}
-                    <button
-                      onClick={() => handleVote(question.id)}
-                      className="flex flex-col items-center bg-yellow-100 text-yellow-800 px-3 py-2 rounded-lg hover:bg-yellow-200 transition-colors"
-                    >
-                      <FiArrowUp className="w-4 h-4" />
-                      <span className="font-semibold text-lg">{question.upvotes}</span>
-                      <span className="text-xs">Vote</span>
-                    </button>
+                <div className="p-6">
+                  <div className="flex space-x-4">
+                    {/* Vote Section */}
+                    <div className="flex flex-col items-center">
+                      <button
+                        onClick={() => handleVote(question.id)}
+                        className="flex flex-col items-center p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors group"
+                      >
+                        <FiArrowUp className="w-5 h-5 text-gray-600 group-hover:text-primary-600" />
+                        <span className="font-semibold text-lg text-gray-900">{question.upvotes}</span>
+                        <span className="text-xs text-gray-500">votes</span>
+                      </button>
+                    </div>
 
-                    {/* Question Text */}
+                    {/* Question Content */}
                     <div className="flex-1">
-                      <div className="mb-2">
-                        <span className="font-semibold text-gray-900">QUESTION TEXT </span>
-                        <span className="text-gray-700">{question.text}</span>
+                      {/* Question Text */}
+                      <div className="mb-4">
+                        <p className="text-gray-900 text-base leading-relaxed">{question.text}</p>
+                        <div className="flex items-center mt-2 text-sm text-gray-500">
+                          <span>by {question.isAnonymous ? 'Anonymous' : question.author.name}</span>
+                          <span className="mx-2">•</span>
+                          <span>{question.createdAt.toLocaleDateString()}</span>
+                          {question.tags.length > 0 && (
+                            <>
+                              <span className="mx-2">•</span>
+                              <div className="flex space-x-1">
+                                {question.tags.map((tag, index) => (
+                                  <span key={index} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
 
                       {/* Moderator Note */}
                       {question.moderatorNote && canModerate && (
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
-                          <span className="font-semibold text-gray-900">MODERATOR-ONLY NOTE </span>
-                          <span className="text-gray-700">{question.moderatorNote}</span>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                          <div className="flex items-start">
+                            <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                              <span className="text-blue-600 text-xs">📝</span>
+                            </div>
+                            <div>
+                              <h4 className="font-medium text-blue-900 mb-1">Moderator Note</h4>
+                              <p className="text-blue-800 text-sm">{question.moderatorNote}</p>
+                            </div>
+                          </div>
                         </div>
                       )}
 
                       {/* Related Questions */}
                       {question.relatedQuestions && question.relatedQuestions.length > 0 && (
-                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-                          <div className="flex items-start space-x-2">
-                            <button className="bg-white border border-gray-300 rounded p-1 mt-1">
-                              <FiPlus className="w-4 h-4" />
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                          <div className="flex items-start">
+                            <button className="w-6 h-6 bg-white border border-amber-300 rounded flex items-center justify-center mr-3 mt-0.5 hover:bg-amber-50">
+                              <FiPlus className="w-3 h-3 text-amber-600" />
                             </button>
                             <div className="flex-1">
-                              <div className="mb-2">
-                                <span className="text-sm text-gray-600">Expands similar questions</span>
-                              </div>
+                              <h4 className="font-medium text-amber-900 mb-2">Related Questions</h4>
                               <div className="space-y-1">
-                                <div className="font-semibold text-gray-900">SEMANTICALLY RELATED QUESTION</div>
                                 {question.relatedQuestions.map((relatedQ, index) => (
-                                  <div key={index} className="text-gray-700 text-sm">
-                                    {index + 1}-{relatedQ}
-                                  </div>
+                                  <p key={index} className="text-amber-800 text-sm">
+                                    {index + 1}. {relatedQ}
+                                  </p>
                                 ))}
                               </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Answer Display */}
+                      {question.isAnswered && question.answer && (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                          <div className="flex items-start">
+                            <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                              <FiCheck className="w-3 h-3 text-green-600" />
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="font-medium text-green-900 mb-1">Answer</h4>
+                              <p className="text-green-800 text-sm mb-2">{question.answer}</p>
+                              {question.answeredBy && question.answeredAt && (
+                                <p className="text-xs text-green-600">
+                                  Answered by {question.answeredBy} on {question.answeredAt.toLocaleDateString()}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -505,67 +563,52 @@ export default function EventDetailsPage() {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex flex-col space-y-2">
-                      {canModerate && (
-                        <>
-                          <button
-                            onClick={() => handleStar(question.id)}
-                            className={`p-2 rounded-lg transition-colors ${
-                              question.isStarred
-                                ? 'bg-yellow-100 text-yellow-600'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                            title={question.isStarred ? 'UnStar' : 'Star'}
-                          >
-                            <FiStar className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleStage(question.id)}
-                            className={`p-2 rounded-lg transition-colors ${
-                              question.isOnStage
-                                ? 'bg-blue-100 text-blue-600'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                            title="Stage"
-                          >
-                            <FiArrowUp className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleAnswer(question.id)}
-                            className={`p-2 rounded-lg transition-colors ${
-                              question.isAnswered
-                                ? 'bg-green-100 text-green-600'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                            title={question.isAnswered ? 'Mark as Unanswered' : 'Mark as Answered'}
-                          >
-                            <FiCheck className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Answer Display */}
-                  {question.isAnswered && question.answer && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <div className="bg-green-50 rounded-lg p-3">
-                        <div className="font-semibold text-green-800 mb-1">Answer:</div>
-                        <div className="text-green-700">{question.answer}</div>
-                        {question.answeredBy && question.answeredAt && (
-                          <div className="text-xs text-green-600 mt-2">
-                            Answered by {question.answeredBy} on {question.answeredAt.toLocaleDateString()}
-                          </div>
-                        )}
+                    {canModerate && (
+                      <div className="flex flex-col space-y-2">
+                        <button
+                          onClick={() => handleStar(question.id)}
+                          className={`p-2 rounded-lg transition-colors tooltip ${
+                            question.isStarred
+                              ? 'bg-yellow-100 text-yellow-600 border border-yellow-200'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200'
+                          }`}
+                          title={question.isStarred ? 'Remove from starred' : 'Add to starred'}
+                        >
+                          <FiStar className={`w-4 h-4 ${question.isStarred ? 'fill-current' : ''}`} />
+                        </button>
+                        
+                        <button
+                          onClick={() => handleStage(question.id)}
+                          className={`p-2 rounded-lg transition-colors ${
+                            question.isOnStage
+                              ? 'bg-primary-100 text-primary-600 border border-primary-200'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200'
+                          }`}
+                          title={question.isOnStage ? 'Remove from stage' : 'Put on stage'}
+                        >
+                          <FiEye className="w-4 h-4" />
+                        </button>
+                        
+                        <button
+                          onClick={() => handleAnswer(question.id)}
+                          className={`p-2 rounded-lg transition-colors ${
+                            question.isAnswered
+                              ? 'bg-green-100 text-green-600 border border-green-200'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200'
+                          }`}
+                          title={question.isAnswered ? 'Mark as unanswered' : 'Mark as answered'}
+                        >
+                          <FiCheck className="w-4 h-4" />
+                        </button>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             ))
           )}
         </div>
-      </div>
+      </main>
     </div>
   );
 }
