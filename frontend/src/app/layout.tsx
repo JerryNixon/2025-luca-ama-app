@@ -2,7 +2,7 @@
 // This is the top-level layout that wraps all pages in the Next.js 13+ app directory structure
 
 // Import global CSS styles that apply to the entire application
-import './globals.css'
+import '../styles/globals.css'
 // Import Next.js metadata type for proper TypeScript typing
 import type { Metadata } from 'next'
 // Import Google Fonts Inter for consistent typography throughout the app
