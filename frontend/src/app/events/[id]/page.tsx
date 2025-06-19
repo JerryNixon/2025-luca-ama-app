@@ -300,18 +300,29 @@ export default function EventDetailsPage() {
         : q
     ));
   };
-
   /**
    * Handle staging question (moderator/presenter only)
+   * Only one question can be staged at a time
    */
   const handleStage = (questionId: string) => {
     if (!canModerate) return;
     
-    setQuestions(prev => prev.map(q => 
-      q.id === questionId 
-        ? { ...q, isOnStage: !q.isOnStage }
-        : q
-    ));
+    setQuestions(prev => prev.map(q => {
+      if (q.id === questionId) {
+        // Toggle the clicked question's stage status
+        return { ...q, isOnStage: !q.isOnStage };
+      } else {
+        // If we're staging a new question, unstage all others
+        // If we're unstaging the current question, leave others as they are
+        const clickedQuestion = prev.find(question => question.id === questionId);
+        if (clickedQuestion && !clickedQuestion.isOnStage) {
+          // We're staging a new question, so unstage this one
+          return { ...q, isOnStage: false };
+        }
+        // We're unstaging, so leave this question's status unchanged
+        return q;
+      }
+    }));
   };
 
   /**
