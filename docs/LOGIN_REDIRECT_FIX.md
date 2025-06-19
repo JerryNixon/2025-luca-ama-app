@@ -129,6 +129,26 @@ If you're still being auto-logged in after this fix, clear your browser storage:
    - Updated initialization to handle null user
    - Updated logout to use demoService method
 
+## 🔄 **UPDATE - Enhanced Login Redirect Fix**
+
+### Additional Improvements Made
+- **Root Page Redesign**: Completely replaced the home page with a redirect-only component
+- **Token Cleanup**: Added automatic token clearing on login page load
+- **Dashboard Preservation**: Moved original dashboard content to `/dashboard` route
+- **Improved UX**: Users now see proper loading states during redirects
+
+### Current Behavior (After Enhancement)
+1. Visit `http://localhost:3000` → Loading spinner → Redirect to `/login` or `/events`
+2. Clean, professional authentication flow with no content flash
+3. Automatic token cleanup ensures fresh authentication state
+
+### Files Updated
+- `frontend/src/app/page.tsx` - New redirect-only root page
+- `frontend/src/app/login/page.tsx` - Added token cleanup on load
+- `frontend/src/app/dashboard/page.tsx` - New dashboard page with original content
+
+**Status: ✅ FULLY RESOLVED** - Root URL now properly redirects to login for unauthenticated users.
+
 ## Status: ✅ COMPLETE
 
 The authentication flow now properly enforces login requirements:

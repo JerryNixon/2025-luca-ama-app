@@ -5,7 +5,7 @@
 'use client';
 
 // Import React hooks for state management
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 // Import authentication context for login functionality
 import { useAuth } from '@/contexts/AuthContext';
 // Import Next.js router for navigation after successful login
@@ -35,6 +35,15 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');           // User's email input
   const [password, setPassword] = useState('');     // User's password input
   const [error, setError] = useState('');           // Error message for failed login attempts
+
+  // Clear any existing authentication tokens when login page loads
+  useEffect(() => {
+    // Clear localStorage tokens to ensure clean login state
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('demo_token');
+      console.log('Cleared existing demo tokens');
+    }
+  }, []);
 
   /**
    * Handle form submission for user login

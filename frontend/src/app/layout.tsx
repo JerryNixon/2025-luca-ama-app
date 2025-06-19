@@ -9,6 +9,8 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 // Import the authentication context provider to manage user state globally
 import { AuthProvider } from '@/contexts/AuthContext'
+// Import toast notification system for user feedback
+import { ToastProvider } from '@/components/ui/Toast'
 
 // Configure the Inter font with Latin character subset for optimal loading
 // This ensures the font is preloaded and optimized for better performance
@@ -48,13 +50,14 @@ export default function RootLayout({
           - Provide authentication state to all components
           - Handle login/logout functionality globally
           - Manage user session persistence
-        */}
-        <AuthProvider>
-          {/* 
-            children represents all the page content that will be rendered
-            This could be the home page, events page, login page, etc.
-          */}
-          {children}
+        */}        <AuthProvider>
+          <ToastProvider>
+            {/* 
+              children represents all the page content that will be rendered
+              This could be the home page, events page, login page, etc.
+            */}
+            {children}
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>

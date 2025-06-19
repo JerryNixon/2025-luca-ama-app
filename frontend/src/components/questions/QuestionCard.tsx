@@ -61,11 +61,10 @@ export default function QuestionCard({
   // Note: This would typically compare question.author.id with current user ID
   // Currently hardcoded to false as user comparison logic is not implemented
   const isOwner = false;
-
   return (
-    <div className={`card hover:shadow-lg transition-shadow duration-200 ${
-      // Special styling for staged questions - blue border and background
-      question.isStaged ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+    <div className={`card fade-in hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 ${
+      // Special styling for staged questions - blue border and background with glow effect
+      question.isStaged ? 'ring-2 ring-blue-500 bg-blue-50 shadow-blue-500/20 shadow-lg' : ''
     }`}>
       <div className="flex items-start justify-between">
         <div className="flex-1">
@@ -154,22 +153,21 @@ export default function QuestionCard({
 
         {/* Action Buttons Section */}
         {showActions && (
-          <div className="flex items-center gap-2 ml-4">
-              {/* Upvote Button - Available to all users except question owners */}
+          <div className="flex items-center gap-2 ml-4">              {/* Upvote Button - Available to all users except question owners */}
             <button
               onClick={onUpvote}
-              className={`flex flex-col items-center p-3 rounded-lg transition-colors ${
+              className={`flex flex-col items-center p-3 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
                 // Different styling based on whether user has already upvoted
                 question.hasUserUpvoted
-                  ? 'bg-primary-100 text-primary-600'    // Active state - user has upvoted
-                  : 'bg-gray-50 hover:bg-gray-100 text-gray-600'  // Default state - can upvote
+                  ? 'bg-primary-100 text-primary-600 shadow-md pulse-on-hover'    // Active state - user has upvoted
+                  : 'bg-gray-50 hover:bg-gray-100 text-gray-600 hover:shadow-md'  // Default state - can upvote
               }`}
               disabled={isOwner}  // Prevent users from upvoting their own questions
               title={isOwner ? "Can't upvote your own question" : (question.hasUserUpvoted ? "Remove your vote" : "Vote for this question")}
             >
-              <FiArrowUp className="w-5 h-5" />
-              <span className="font-semibold text-lg">{question.upvotes}</span>
-              <span className="text-xs">votes</span>
+              <FiArrowUp className={`w-5 h-5 transition-transform duration-200 ${question.hasUserUpvoted ? 'text-primary-600' : ''}`} />
+              <span className={`font-semibold text-lg transition-colors duration-200 ${question.hasUserUpvoted ? 'text-primary-600' : ''}`}>{question.upvotes}</span>
+              <span className={`text-xs transition-colors duration-200 ${question.hasUserUpvoted ? 'text-primary-500' : ''}`}>votes</span>
             </button>
 
             {/* Moderator and Presenter Actions */}

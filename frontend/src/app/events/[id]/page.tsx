@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
 import { Event, Question } from '../../../types';
 import { FiStar, FiArrowUp, FiCheck, FiEye, FiTrash2, FiPlus, FiMinus, FiFilter } from 'react-icons/fi';
+import { EventHeaderSkeleton, QuestionCardSkeleton } from '../../../components/ui/LoadingSkeleton';
+import { useToast } from '../../../components/ui/Toast';
 
 /**
  * Event Details Page Component
@@ -41,10 +43,9 @@ export default function EventDetailsPage() {
   const router = useRouter();
   const params = useParams();
   const eventId = params.id as string;
-  // Component state
+  const { success, error: showError, info } = useToast();// Component state
   const [event, setEvent] = useState<Event | null>(null);
   const [questions, setQuestions] = useState<ExtendedQuestion[]>([]);
-  const [filteredQuestions, setFilteredQuestions] = useState<ExtendedQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<QuestionFilter>('all');
@@ -91,13 +92,9 @@ export default function EventDetailsPage() {
 
     loadEventData();
   }, [eventId, isAuthenticated, canModerate, user?.role, router]);
-
   /**
    * Filter questions based on active tab
    */
-  useEffect(() => {
-    filterQuestions();
-  }, [questions, activeFilter, showModeratorsOnly]);
 
   /**
    * Simulates loading event and question data
@@ -231,11 +228,11 @@ export default function EventDetailsPage() {
       setLoading(false);
     }
   };
-
   /**
-   * Filter questions based on active tab and moderator filter
+   * Memoized filtered questions for better performance
+   * Only recalculates when questions, activeFilter, or showModeratorsOnly changes
    */
-  const filterQuestions = () => {
+  const filteredQuestions = useMemo(() => {
     let filtered = [...questions];
 
     // Apply tab filter
@@ -268,38 +265,56 @@ export default function EventDetailsPage() {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
-    setFilteredQuestions(filtered);
-  };
-  /**
+    return filtered;
+  }, [questions, activeFilter, showModeratorsOnly, canModerate]);  /**
    * Handle question voting with proper vote limitation
    * Users can only vote once per question (toggle vote on/off)
    */
-  const handleVote = (questionId: string) => {
+  const handleVote = useCallback((questionId: string) => {
     setQuestions(prev => prev.map(q => {
       if (q.id === questionId) {
         const hasVoted = q.hasUserUpvoted;
+        const newVoteCount = hasVoted ? q.upvotes - 1 : q.upvotes + 1;
+        
+        // Show toast notification
+        if (hasVoted) {
+          info('Vote removed', 'Your vote has been removed from this question');
+        } else {
+          success('Vote added', 'Your vote has been added to this question');
+        }
+        
         return {
           ...q,
-          upvotes: hasVoted ? q.upvotes - 1 : q.upvotes + 1,
+          upvotes: newVoteCount,
           hasUserUpvoted: !hasVoted
         };
       }
       return q;
     }));
-  };
+  }, [success, info]);
 
   /**
    * Handle question starring (moderator/presenter only)
    */
-  const handleStar = (questionId: string) => {
+  const handleStar = useCallback((questionId: string) => {
     if (!canModerate) return;
     
-    setQuestions(prev => prev.map(q => 
-      q.id === questionId 
-        ? { ...q, isStarred: !q.isStarred }
-        : q
-    ));
-  };
+    setQuestions(prev => prev.map(q => {
+      if (q.id === questionId) {
+        const newStarred = !q.isStarred;
+        
+        // Show toast notification
+        if (newStarred) {
+          success('Question starred', 'Question has been marked as important');
+        } else {
+          info('Star removed', 'Question is no longer starred');
+        }
+        
+        return { ...q, isStarred: newStarred };
+      }
+      return q;
+    }));
+  }, [canModerate, success, info]);
   /**
    * Handle staging question (moderator/presenter only)
    * Only one question can be staged at a time
@@ -428,12 +443,31 @@ export default function EventDetailsPage() {
       [questionId]: text
     }));
   };
-
-  // Loading state
+  // Loading state with enhanced skeleton
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-500"></div>
+      <div className="min-h-screen bg-gray-50">
+        {/* Navigation skeleton */}
+        <nav className="bg-white shadow-sm border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between h-16 items-center">
+              <div className="h-6 w-32 bg-gray-200 rounded animate-pulse"></div>
+              <div className="flex items-center space-x-4">
+                <div className="h-4 w-24 bg-gray-200 rounded animate-pulse"></div>
+                <div className="h-6 w-16 bg-gray-200 rounded-full animate-pulse"></div>
+                <div className="h-4 w-20 bg-gray-200 rounded animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+        </nav>
+        
+        {/* Header skeleton */}
+        <EventHeaderSkeleton />
+        
+        {/* Content skeleton */}
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <QuestionCardSkeleton count={5} />
+        </main>
       </div>
     );
   }
