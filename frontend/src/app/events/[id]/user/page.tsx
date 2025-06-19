@@ -5,6 +5,7 @@ import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
 import { Event, Question } from '../../../../types';
 import { FiArrowUp, FiSend, FiUser, FiEyeOff } from 'react-icons/fi';
+import QuestionCard from '../../../../components/questions/QuestionCard';
 
 /**
  * User Event View Page Component
@@ -104,9 +105,7 @@ export default function UserEventViewPage() {
         isActive: true,
         createdAt: new Date('2024-01-10T09:00:00'),
         updatedAt: new Date('2024-01-15T10:30:00')
-      };
-
-      // Mock questions data for user view (simplified)
+      };      // Mock questions data for user view (simplified)
       const mockQuestions: UserQuestion[] = [
         {
           id: '1',
@@ -127,7 +126,70 @@ export default function UserEventViewPage() {
           tags: ['fabric', 'development', 'integration'],
           createdAt: new Date('2024-01-15T10:15:00'),
           updatedAt: new Date('2024-01-15T10:30:00'),
-          hasVoted: false
+          hasVoted: false,
+          // Add similar/grouped questions to demonstrate the toggle functionality
+          groupedQuestions: [
+            {
+              id: '1a',
+              eventId: eventId,
+              text: 'What are the developer tools available for Fabric integration?',
+              author: {
+                id: '5',
+                email: 'dev1@microsoft.com',
+                name: 'Alex Thompson',
+                role: 'user'
+              },
+              isAnonymous: false,
+              upvotes: 5,
+              hasUserUpvoted: false,
+              isAnswered: false,
+              isStarred: false,
+              isStaged: false,
+              tags: ['fabric', 'tools', 'development'],
+              createdAt: new Date('2024-01-15T10:16:00'),
+              updatedAt: new Date('2024-01-15T10:16:00')
+            },
+            {
+              id: '1b',
+              eventId: eventId,
+              text: 'How do developers typically handle Fabric API rate limits?',
+              author: {
+                id: '6',
+                email: 'dev2@microsoft.com',
+                name: 'Anonymous',
+                role: 'user'
+              },
+              isAnonymous: true,
+              upvotes: 3,
+              hasUserUpvoted: true,
+              isAnswered: true,
+              isStarred: false,
+              isStaged: false,
+              tags: ['fabric', 'api', 'rate-limits'],
+              createdAt: new Date('2024-01-15T10:18:00'),
+              updatedAt: new Date('2024-01-15T10:35:00')
+            },
+            {
+              id: '1c',
+              eventId: eventId,
+              text: 'Are there any community resources or forums for Fabric developers?',
+              author: {
+                id: '7',
+                email: 'community@microsoft.com',
+                name: 'Jordan Kim',
+                role: 'user'
+              },
+              isAnonymous: false,
+              upvotes: 7,
+              hasUserUpvoted: false,
+              isAnswered: false,
+              isStarred: false,
+              isStaged: false,
+              tags: ['fabric', 'community', 'resources'],
+              createdAt: new Date('2024-01-15T10:22:00'),
+              updatedAt: new Date('2024-01-15T10:22:00')
+            }
+          ]
         },
         {
           id: '2',
@@ -149,8 +211,7 @@ export default function UserEventViewPage() {
           createdAt: new Date('2024-01-15T10:20:00'),
           updatedAt: new Date('2024-01-15T10:45:00'),
           hasVoted: true
-        },
-        {
+        },        {
           id: '3',
           eventId: eventId,
           text: 'Can you explain how Fabric handles data governance and compliance requirements?',
@@ -169,7 +230,50 @@ export default function UserEventViewPage() {
           tags: ['fabric', 'governance', 'compliance'],
           createdAt: new Date('2024-01-15T10:25:00'),
           updatedAt: new Date('2024-01-15T10:25:00'),
-          hasVoted: false
+          hasVoted: false,
+          // Add similar questions about governance and compliance
+          groupedQuestions: [
+            {
+              id: '3a',
+              eventId: eventId,
+              text: 'What are the GDPR compliance features in Fabric?',
+              author: {
+                id: '8',
+                email: 'legal@microsoft.com',
+                name: 'Anonymous',
+                role: 'user'
+              },
+              isAnonymous: true,
+              upvotes: 4,
+              hasUserUpvoted: false,
+              isAnswered: false,
+              isStarred: false,
+              isStaged: false,
+              tags: ['fabric', 'gdpr', 'compliance'],
+              createdAt: new Date('2024-01-15T10:26:00'),
+              updatedAt: new Date('2024-01-15T10:26:00')
+            },
+            {
+              id: '3b',
+              eventId: eventId,
+              text: 'How does Fabric handle data lineage and audit trails?',
+              author: {
+                id: '9',
+                email: 'audit@microsoft.com',
+                name: 'Patricia Wilson',
+                role: 'user'
+              },
+              isAnonymous: false,
+              upvotes: 8,
+              hasUserUpvoted: true,
+              isAnswered: false,
+              isStarred: false,
+              isStaged: false,
+              tags: ['fabric', 'lineage', 'audit'],
+              createdAt: new Date('2024-01-15T10:27:00'),
+              updatedAt: new Date('2024-01-15T10:27:00')
+            }
+          ]
         },
         {
           id: '4',
@@ -501,82 +605,15 @@ export default function UserEventViewPage() {
                   : 'No questions have been answered yet.'
                 }
               </p>
-            </div>
-          ) : (
+            </div>          ) : (
             filteredQuestions.map((question) => (
-              <div key={question.id} className="bg-white rounded-lg shadow-sm border p-6">
-                <div className="flex space-x-4">
-                  {/* Vote Section */}
-                  <div className="flex flex-col items-center">
-                    <button
-                      onClick={() => handleVote(question.id)}
-                      className={`flex flex-col items-center p-3 rounded-lg transition-colors ${
-                        question.hasUserUpvoted
-                          ? 'bg-primary-100 text-primary-600'
-                          : 'bg-gray-50 hover:bg-gray-100 text-gray-600'
-                      }`}
-                    >
-                      <FiArrowUp className="w-5 h-5 mb-1" />
-                      <span className="font-semibold text-lg">{question.upvotes}</span>
-                      <span className="text-xs">votes</span>
-                    </button>
-                  </div>
-
-                  {/* Question Content */}
-                  <div className="flex-1">
-                    {/* Question Text */}
-                    <div className="mb-4">
-                      <p className="text-gray-900 text-base leading-relaxed mb-2">{question.text}</p>
-                      <div className="flex items-center text-sm text-gray-500">
-                        <div className="flex items-center">
-                          {question.isAnonymous ? (
-                            <>
-                              <FiEyeOff className="w-4 h-4 mr-1" />
-                              <span>Anonymous</span>
-                            </>
-                          ) : (
-                            <>
-                              <FiUser className="w-4 h-4 mr-1" />
-                              <span>{question.author.name}</span>
-                            </>
-                          )}
-                        </div>
-                        <span className="mx-2">•</span>
-                        <span>{question.createdAt.toLocaleDateString()}</span>
-                        {question.tags.length > 0 && (
-                          <>
-                            <span className="mx-2">•</span>
-                            <div className="flex space-x-1">
-                              {question.tags.map((tag, index) => (
-                                <span key={index} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Answer Display */}
-                    {question.isAnswered && (
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <div className="flex items-start">
-                          <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
-                            <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-medium text-green-900 mb-1">Answered</h4>
-                            <p className="text-green-800 text-sm">This question has been addressed by the presenter.</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <QuestionCard
+                key={question.id}
+                question={question}
+                userRole="user"
+                onUpvote={() => handleVote(question.id)}
+                showActions={true}
+              />
             ))
           )}
         </div>

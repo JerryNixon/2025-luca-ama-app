@@ -2,9 +2,9 @@
 // This component renders individual questions with role-based actions and status indicators
 
 // Import React for component creation
-import React from 'react';
+import React, { useState } from 'react';
 // Import Feather icons for action buttons and visual indicators
-import { FiThumbsUp, FiStar, FiMessageSquare, FiMoreVertical, FiUser, FiClock } from 'react-icons/fi';
+import { FiStar, FiMessageSquare, FiMoreVertical, FiUser, FiClock, FiArrowUp, FiEyeOff } from 'react-icons/fi';
 // Import TypeScript types for type safety
 import { Question, UserRole } from '@/types';
 // Import date formatting utility
@@ -155,21 +155,21 @@ export default function QuestionCard({
         {/* Action Buttons Section */}
         {showActions && (
           <div className="flex items-center gap-2 ml-4">
-            
-            {/* Upvote Button - Available to all users except question owners */}
+              {/* Upvote Button - Available to all users except question owners */}
             <button
               onClick={onUpvote}
-              className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-colors ${
+              className={`flex flex-col items-center p-3 rounded-lg transition-colors ${
                 // Different styling based on whether user has already upvoted
                 question.hasUserUpvoted
-                  ? 'bg-blue-100 text-blue-700'    // Active state - user has upvoted
-                  : 'hover:bg-gray-100 text-gray-600'  // Default state - can upvote
+                  ? 'bg-primary-100 text-primary-600'    // Active state - user has upvoted
+                  : 'bg-gray-50 hover:bg-gray-100 text-gray-600'  // Default state - can upvote
               }`}
               disabled={isOwner}  // Prevent users from upvoting their own questions
-              title={isOwner ? "Can't upvote your own question" : "Upvote this question"}
+              title={isOwner ? "Can't upvote your own question" : (question.hasUserUpvoted ? "Remove your vote" : "Vote for this question")}
             >
-              <FiThumbsUp className="w-4 h-4" />
-              <span className="text-sm font-medium">{question.upvotes}</span>
+              <FiArrowUp className="w-5 h-5" />
+              <span className="font-semibold text-lg">{question.upvotes}</span>
+              <span className="text-xs">votes</span>
             </button>
 
             {/* Moderator and Presenter Actions */}
@@ -231,17 +231,132 @@ export default function QuestionCard({
               </div>
             )}
           </div>
-        )}
-      </div>
-
-      {/* Grouped Questions Section */}
+        )}      </div>      {/* Grouped Questions Section */}
       {/* Shows when this question has been grouped with similar questions */}
-      {question.groupedQuestions && question.groupedQuestions.length > 0 && (
-        <div className="mt-4 border-t pt-4">
-          <button className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
-            <span>+</span>
-            <span>{question.groupedQuestions.length} similar questions</span>
-          </button>
+      <SimilarQuestionsSection 
+        question={question}
+        isModeratorView={userRole === 'moderator' || userRole === 'presenter'}
+        onUpvote={onUpvote || (() => {})}
+      />
+    </div>
+  );
+}
+
+/**
+ * Similar Questions Section Component
+ * 
+ * Displays a collapsible section for similar/grouped questions.
+ * Features:
+ * - Toggle expand/collapse functionality
+ * - Shows grouped questions count
+ * - Displays similar questions in a compact format
+ * - Supports voting on similar questions
+ */
+interface SimilarQuestionsSectionProps {
+  question: Question;
+  isModeratorView: boolean;
+  onUpvote: (questionId: string) => void;
+}
+
+function SimilarQuestionsSection({ question, isModeratorView, onUpvote }: SimilarQuestionsSectionProps) {
+  // State to track if similar questions are expanded
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Don't render if no grouped questions
+  if (!question.groupedQuestions || question.groupedQuestions.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 border-t pt-4">
+      {/* Toggle Button */}
+      <button 
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+      >
+        <span className={`transition-transform duration-200 ${isExpanded ? 'rotate-45' : ''}`}>
+          {isExpanded ? '−' : '+'}
+        </span>
+        <span>{question.groupedQuestions.length} similar question{question.groupedQuestions.length > 1 ? 's' : ''}</span>
+      </button>
+
+      {/* Expanded Similar Questions */}
+      {isExpanded && (
+        <div className="mt-3 space-y-3 pl-4 border-l-2 border-gray-100">
+          {question.groupedQuestions.map((similarQuestion) => (
+            <div key={similarQuestion.id} className="bg-gray-50 rounded-lg p-4">
+              <div className="flex space-x-3">                {/* Vote Button for Similar Questions */}
+                <div className="flex flex-col items-center">
+                  <button
+                    onClick={() => onUpvote(similarQuestion.id)}
+                    className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
+                      similarQuestion.hasUserUpvoted
+                        ? 'bg-primary-100 text-primary-600'
+                        : 'bg-white hover:bg-gray-100 text-gray-600'
+                    }`}
+                    title={similarQuestion.hasUserUpvoted ? "Remove your vote" : "Vote for this question"}
+                  >
+                    <FiArrowUp className="w-4 h-4" />
+                    <span className="font-medium text-sm">{similarQuestion.upvotes}</span>
+                    <span className="text-xs">votes</span>
+                  </button>
+                </div>
+
+                {/* Similar Question Content */}
+                <div className="flex-1">
+                  <p className="text-gray-900 text-sm leading-relaxed mb-2">
+                    {similarQuestion.text}
+                  </p>
+                  
+                  <div className="flex items-center text-xs text-gray-500 space-x-2">
+                    <div className="flex items-center">
+                      {similarQuestion.isAnonymous ? (
+                        <>
+                          <FiEyeOff className="w-3 h-3 mr-1" />
+                          <span>Anonymous</span>
+                        </>
+                      ) : (
+                        <>
+                          <FiUser className="w-3 h-3 mr-1" />
+                          <span>{similarQuestion.author.name}</span>
+                        </>
+                      )}
+                    </div>
+                    <span>•</span>
+                    <span>{similarQuestion.createdAt.toLocaleDateString()}</span>
+                    
+                    {/* Status Badge for Similar Questions */}
+                    {similarQuestion.isAnswered && (
+                      <>
+                        <span>•</span>
+                        <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">
+                          Answered
+                        </span>
+                      </>
+                    )}
+                    
+                    {isModeratorView && similarQuestion.isStarred && (
+                      <>
+                        <span>•</span>
+                        <span className="text-yellow-600" title="Starred">⭐</span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Tags for Similar Questions */}
+                  {similarQuestion.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {similarQuestion.tags.map((tag, index) => (
+                        <span key={index} className="bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-xs">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

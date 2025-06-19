@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
 import { Event, Question } from '../../../types';
-import { FiStar, FiArrowUp, FiCheck, FiEye, FiTrash2, FiPlus, FiFilter } from 'react-icons/fi';
+import { FiStar, FiArrowUp, FiCheck, FiEye, FiTrash2, FiPlus, FiMinus, FiFilter } from 'react-icons/fi';
 
 /**
  * Event Details Page Component
@@ -41,7 +41,6 @@ export default function EventDetailsPage() {
   const router = useRouter();
   const params = useParams();
   const eventId = params.id as string;
-
   // Component state
   const [event, setEvent] = useState<Event | null>(null);
   const [questions, setQuestions] = useState<ExtendedQuestion[]>([]);
@@ -50,11 +49,26 @@ export default function EventDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<QuestionFilter>('all');
   const [showModeratorsOnly, setShowModeratorsOnly] = useState(false);
+    // Track which questions have their related questions expanded
+  const [expandedRelatedQuestions, setExpandedRelatedQuestions] = useState<Set<string>>(new Set());  // Track which moderator notes are being edited
+  const [editingModeratorNotes, setEditingModeratorNotes] = useState<Set<string>>(new Set());
+  const [moderatorNoteTexts, setModeratorNoteTexts] = useState<Record<string, string>>({});
+  
+  // Initialize moderator note texts when questions load
+  useEffect(() => {
+    const noteTexts: Record<string, string> = {};
+    questions.forEach(question => {
+      if (question.moderatorNote) {
+        noteTexts[question.id] = question.moderatorNote;
+      }
+    });
+    setModeratorNoteTexts(noteTexts);
+  }, [questions]);
 
   // Role-based permissions
   const isModerator = user?.role === 'moderator';
   const isPresenter = user?.role === 'presenter';
-  const canModerate = isModerator || isPresenter;  /**
+  const canModerate = isModerator || isPresenter;/**
    * Load event data and questions
    */
   useEffect(() => {
@@ -256,16 +270,22 @@ export default function EventDetailsPage() {
 
     setFilteredQuestions(filtered);
   };
-
   /**
-   * Handle question voting
+   * Handle question voting with proper vote limitation
+   * Users can only vote once per question (toggle vote on/off)
    */
   const handleVote = (questionId: string) => {
-    setQuestions(prev => prev.map(q => 
-      q.id === questionId 
-        ? { ...q, upvotes: q.upvotes + 1 }
-        : q
-    ));
+    setQuestions(prev => prev.map(q => {
+      if (q.id === questionId) {
+        const hasVoted = q.hasUserUpvoted;
+        return {
+          ...q,
+          upvotes: hasVoted ? q.upvotes - 1 : q.upvotes + 1,
+          hasUserUpvoted: !hasVoted
+        };
+      }
+      return q;
+    }));
   };
 
   /**
@@ -310,6 +330,92 @@ export default function EventDetailsPage() {
           }
         : q
     ));
+  };
+
+  /**
+   * Toggle the expanded state of related questions for a specific question
+   */
+  const toggleRelatedQuestions = (questionId: string) => {
+    setExpandedRelatedQuestions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(questionId)) {
+        newSet.delete(questionId);
+      } else {
+        newSet.add(questionId);
+      }
+      return newSet;
+    });
+  };  /**
+   * Start editing a moderator note
+   */
+  const startEditingNote = (questionId: string) => {
+    if (!isModerator) return;
+    
+    setEditingModeratorNotes(prev => new Set(prev).add(questionId));
+    
+    // Initialize the text area with existing note or empty string
+    const question = questions.find(q => q.id === questionId);
+    setModeratorNoteTexts(prev => ({
+      ...prev,
+      [questionId]: question?.moderatorNote || ''
+    }));
+  };
+
+  /**
+   * Cancel editing a moderator note
+   */
+  const cancelEditingNote = (questionId: string) => {
+    setEditingModeratorNotes(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(questionId);
+      return newSet;
+    });
+    
+    // Reset text to original value
+    const question = questions.find(q => q.id === questionId);
+    setModeratorNoteTexts(prev => ({
+      ...prev,
+      [questionId]: question?.moderatorNote || ''
+    }));
+  };  /**
+   * Save a moderator note
+   */
+  const saveModeratorNote = (questionId: string) => {
+    if (!isModerator) return;
+    
+    const noteText = moderatorNoteTexts[questionId]?.trim() || '';
+    
+    // Update the question with the new note
+    setQuestions(prev => prev.map(q => 
+      q.id === questionId 
+        ? { ...q, moderatorNote: noteText || undefined }
+        : q
+    ));
+    
+    // Stop editing
+    setEditingModeratorNotes(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(questionId);
+      return newSet;
+    });
+    
+    // Keep the text in state for persistence
+    if (!noteText) {
+      setModeratorNoteTexts(prev => {
+        const newTexts = { ...prev };
+        delete newTexts[questionId];
+        return newTexts;
+      });
+    }
+  };
+  /**
+   * Update moderator note text as user types
+   */
+  const updateModeratorNoteText = (questionId: string, text: string) => {
+    setModeratorNoteTexts(prev => ({
+      ...prev,
+      [questionId]: text
+    }));
   };
 
   // Loading state
@@ -473,16 +579,20 @@ export default function EventDetailsPage() {
 
                 {/* Question Content */}
                 <div className="p-6">
-                  <div className="flex space-x-4">
-                    {/* Vote Section */}
+                  <div className="flex space-x-4">                    {/* Vote Section */}
                     <div className="flex flex-col items-center">
                       <button
                         onClick={() => handleVote(question.id)}
-                        className="flex flex-col items-center p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors group"
+                        className={`flex flex-col items-center p-3 rounded-lg transition-colors group ${
+                          question.hasUserUpvoted
+                            ? 'bg-primary-100 text-primary-600'
+                            : 'bg-gray-50 hover:bg-gray-100 text-gray-600'
+                        }`}
+                        title={question.hasUserUpvoted ? "Remove your vote" : "Vote for this question"}
                       >
-                        <FiArrowUp className="w-5 h-5 text-gray-600 group-hover:text-primary-600" />
-                        <span className="font-semibold text-lg text-gray-900">{question.upvotes}</span>
-                        <span className="text-xs text-gray-500">votes</span>
+                        <FiArrowUp className="w-5 h-5" />
+                        <span className="font-semibold text-lg">{question.upvotes}</span>
+                        <span className="text-xs">votes</span>
                       </button>
                     </div>
 
@@ -508,45 +618,105 @@ export default function EventDetailsPage() {
                             </>
                           )}
                         </div>
-                      </div>
-
-                      {/* Moderator Note */}
-                      {question.moderatorNote && canModerate && (
+                      </div>                      {/* Moderator Note - Editable */}
+                      {canModerate && (question.moderatorNote || editingModeratorNotes.has(question.id)) && (
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                           <div className="flex items-start">
                             <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
                               <span className="text-blue-600 text-xs">📝</span>
                             </div>
-                            <div>
-                              <h4 className="font-medium text-blue-900 mb-1">Moderator Note</h4>
-                              <p className="text-blue-800 text-sm">{question.moderatorNote}</p>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-medium text-blue-900">Moderator Note</h4>                                {!editingModeratorNotes.has(question.id) && isModerator && (
+                                  <button
+                                    onClick={() => startEditingNote(question.id)}
+                                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                  >
+                                    Edit
+                                  </button>
+                                )}
+                              </div>
+                              
+                              {editingModeratorNotes.has(question.id) ? (
+                                <div className="space-y-3">
+                                  <textarea
+                                    value={moderatorNoteTexts[question.id] || ''}
+                                    onChange={(e) => updateModeratorNoteText(question.id, e.target.value)}
+                                    placeholder="Add a note for this question..."
+                                    className="w-full px-3 py-2 border border-blue-200 rounded-md text-sm text-blue-900 bg-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                                    rows={3}
+                                  />
+                                  <div className="flex items-center space-x-2">
+                                    <button
+                                      onClick={() => saveModeratorNote(question.id)}
+                                      className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                                    >
+                                      Save
+                                    </button>
+                                    <button
+                                      onClick={() => cancelEditingNote(question.id)}
+                                      className="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="text-blue-800 text-sm">{question.moderatorNote}</p>
+                              )}
                             </div>
                           </div>
                         </div>
+                      )}                      {/* Add Note Button - Show when no note exists and not editing */}
+                      {canModerate && !question.moderatorNote && !editingModeratorNotes.has(question.id) && (<div className="mb-4">
+                          <button
+                            onClick={() => startEditingNote(question.id)}
+                            className="flex items-center space-x-2 px-3 py-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors border border-blue-200 hover:border-blue-300"
+                          >
+                            <span className="text-blue-600">📝</span>
+                            <span>Add Note</span>
+                          </button>
+                        </div>
                       )}
 
-                      {/* Related Questions */}
+                      {/* Related Questions - Now functional with expand/collapse */}
                       {question.relatedQuestions && question.relatedQuestions.length > 0 && (
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
-                          <div className="flex items-start">
-                            <button className="w-6 h-6 bg-white border border-amber-300 rounded flex items-center justify-center mr-3 mt-0.5 hover:bg-amber-50">
-                              <FiPlus className="w-3 h-3 text-amber-600" />
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">                          <div className="flex items-start">
+                            <button 
+                              onClick={() => toggleRelatedQuestions(question.id)}
+                              className="w-6 h-6 bg-white border border-amber-300 rounded flex items-center justify-center mr-3 mt-0.5 hover:bg-amber-50 transition-colors"
+                              title={expandedRelatedQuestions.has(question.id) ? "Collapse related questions" : "Expand related questions"}
+                            >
+                              {expandedRelatedQuestions.has(question.id) ? (
+                                <FiMinus className="w-3 h-3 text-amber-600" />
+                              ) : (
+                                <FiPlus className="w-3 h-3 text-amber-600" />
+                              )}
                             </button>
                             <div className="flex-1">
-                              <h4 className="font-medium text-amber-900 mb-2">Related Questions</h4>
-                              <div className="space-y-1">
-                                {question.relatedQuestions.map((relatedQ, index) => (
-                                  <p key={index} className="text-amber-800 text-sm">
-                                    {index + 1}. {relatedQ}
-                                  </p>
-                                ))}
-                              </div>
+                              <button 
+                                onClick={() => toggleRelatedQuestions(question.id)}
+                                className="text-left hover:text-amber-800 transition-colors"
+                              >
+                                <h4 className="font-medium text-amber-900">
+                                  {question.relatedQuestions.length} Related Question{question.relatedQuestions.length > 1 ? 's' : ''}
+                                </h4>
+                              </button>
+                              
+                              {/* Collapsible Related Questions List */}
+                              {expandedRelatedQuestions.has(question.id) && (
+                                <div className="mt-2 space-y-1">
+                                  {question.relatedQuestions.map((relatedQ, index) => (
+                                    <p key={index} className="text-amber-800 text-sm">
+                                      {index + 1}. {relatedQ}
+                                    </p>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
-                      )}
-
-                      {/* Answer Display */}
+                      )}                      {/* Answer Display */}
                       {question.isAnswered && question.answer && (
                         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                           <div className="flex items-start">

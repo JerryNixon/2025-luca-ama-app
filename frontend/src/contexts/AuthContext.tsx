@@ -50,15 +50,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     /**
      * Initialize authentication state
      * Checks for existing authentication tokens and validates user session
-     */
-    const initializeAuth = async () => {
+     */    const initializeAuth = async () => {
       if (USE_DEMO_DATA) {
         // Demo mode - check localStorage for demo token
         const token = localStorage.getItem('demo_token');
         if (token) {
-          // Get demo user data if token exists
+          // Get demo user data if token exists and is valid
           const demoUser = demoService.getCurrentUser();
-          setUser(demoUser);
+          if (demoUser) {
+            setUser(demoUser);
+          } else {
+            // Token exists but is invalid, clean up
+            localStorage.removeItem('demo_token');
+          }
         }
       } else {
         // Production mode - check secure HTTP-only cookie for token
@@ -118,13 +122,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /**
    * Logout function
    * Clears user session and removes authentication tokens
-   */
-  const logout = async () => {
+   */  const logout = async () => {
     setIsLoading(true);
     try {
       if (USE_DEMO_DATA) {
-        // Demo logout - remove token from localStorage
-        localStorage.removeItem('demo_token');
+        // Demo logout - use demoService to clear token
+        await demoService.logout();
       } else {
         // Production logout - call API to invalidate token
         await authService.logout();

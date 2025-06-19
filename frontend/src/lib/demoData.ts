@@ -182,17 +182,25 @@ export const demoQuestions: Question[] = [
  * Provides realistic delays and responses that match the real API interface.
  * All methods return promises to simulate asynchronous API calls.
  */
-export const demoService = {
-  /**
+export const demoService = {  /**
    * Get Current User
    * 
    * Simulates retrieving the currently authenticated user.
    * In a real application, this would validate the JWT token.
+   * Only returns a user if there's a valid demo token in localStorage.
    * 
-   * @returns Currently authenticated user object
+   * @returns Currently authenticated user object or null if not authenticated
    */
-  getCurrentUser: (): User => {
-    return demoUsers[0]; // Default to demo user for development
+  getCurrentUser: (): User | null => {
+    // Check if there's a valid demo token
+    const token = localStorage.getItem('demo_token');
+    if (!token) {
+      return null; // No token, user is not authenticated
+    }
+    
+    // In a real app, we would validate the token here
+    // For demo purposes, we just check if token exists
+    return demoUsers[0]; // Return demo user if token exists
   },
 
   /**
@@ -214,12 +222,26 @@ export const demoService = {
     const user = demoUsers.find(u => u.email === email);
     if (!user || password !== 'demo123') {
       throw new Error('Invalid credentials');
-    }
-
-    return {
+    }    return {
       user,
       token: 'demo-jwt-token-' + user.id,    // Mock JWT token
-    };  },
+    };
+  },
+
+  /**
+   * User Logout
+   * 
+   * Simulates logout by clearing the demo token from localStorage.
+   * 
+   * @returns Promise resolving when logout is complete
+   */
+  logout: async (): Promise<void> => {
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    // Clear the demo token
+    localStorage.removeItem('demo_token');
+  },
 
   /**
    * Get All Events
