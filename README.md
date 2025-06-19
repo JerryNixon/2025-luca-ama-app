@@ -1,6 +1,6 @@
 # Luca AMA App
 
-A modern full-stack application for managing Ask Me Anything (AMA) sessions during Microsoft events.
+Ask Me Anything (AMA) sessions during Microsoft events.
 
 ## 📁 Project Structure
 
@@ -36,7 +36,6 @@ luca-ama-app/
 └── LICENSE              # Project license
 ```
 
-## 🚀 Quick Start
 
 ### Frontend Development
 ```bash
@@ -60,7 +59,7 @@ python manage.py runserver
 
 ## 🎯 Project Overview
 
-This application streamlines Q&A workflows during Microsoft all-hands, town halls, or team-wide events. Users can post questions, upvote others, and see what's being addressed live. Admins can mark questions as answered and export them to reports.
+This application helps with Q&A workflows during Microsoft all-hands, town halls, or team-wide events. Users can post questions, upvote others, and see what's being addressed live. Admins can mark questions as answered and export them to reports.
 
 ### Technology Stack
 
@@ -79,9 +78,9 @@ This application streamlines Q&A workflows during Microsoft all-hands, town hall
 **DevOps:**
 - GitHub for version control
 - VS Code Dev Containers
-- Azure deployment
+- Github action
 
-## 👥 User Roles & Features
+## Personnas Roles & Features
 
 ### 🔧 Moderator
 - Full event management (create, edit, delete)
@@ -110,13 +109,6 @@ This application streamlines Q&A workflows during Microsoft all-hands, town hall
 - **Week 9**: Deployment & polish
 - **Week 10**: Final Connect + Presentation
 
-## 🔗 Key Links
-
-- **Frontend**: http://localhost:3000 (when running)
-- **Backend API**: http://localhost:8000 (when implemented)
-- **Documentation**: [`docs/`](./docs/)
-- **User Stories**: See project attachments and flowcharts
-
 ## 🛠️ Development Commands
 
 ```bash
@@ -138,9 +130,3 @@ python manage.py test         # Run tests
 - [`docs/FRONTEND_SUMMARY.md`](./docs/FRONTEND_SUMMARY.md) - Complete frontend overview
 - [`frontend/README.md`](./frontend/README.md) - Frontend-specific documentation
 - User stories and flowcharts - See project attachments
-
-## 🤝 Contributing
-
-This is a development project for Microsoft internship. Follow the established patterns for components, services, and types when adding new features.
-
-Current focus: **Frontend complete ✅** → **Backend development next** 🚧

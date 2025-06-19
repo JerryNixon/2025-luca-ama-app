@@ -2,7 +2,7 @@
 
 Django REST Framework API for the AMA (Ask Me Anything) system.
 
-## 🚀 Quick Start (Coming Soon)
+## (Coming Soon)
 
 ```bash
 # Install dependencies

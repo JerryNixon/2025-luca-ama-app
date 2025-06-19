@@ -1,6 +1,6 @@
 # Frontend - Luca AMA App
 
-A modern Next.js React application for the AMA (Ask Me Anything) system.
+Next.js React application for the AMA (Ask Me Anything) system.
 
 ## 🚀 Quick Start
 
@@ -158,13 +158,6 @@ Comprehensive types matching expected API responses:
 4. **Real-time Updates**: WebSocket integration
 5. **Advanced Filtering**: Implement search and filter UI
 
-## 📱 Responsive Design
-
-The application is fully responsive with:
-- Mobile-first design approach
-- Responsive grid layouts
-- Touch-friendly buttons
-- Optimized for tablets and phones
 
 ## 🔍 Development Notes
 
