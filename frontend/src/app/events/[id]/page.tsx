@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
 import { Event, Question } from '../../../types';
 import { FiStar, FiArrowUp, FiCheck, FiEye, FiTrash2, FiPlus, FiMinus, FiFilter } from 'react-icons/fi';
 import { EventHeaderSkeleton, QuestionCardSkeleton } from '../../../components/ui/LoadingSkeleton';
-import { useToast } from '../../../components/ui/Toast';
+
 
 /**
  * Event Details Page Component
@@ -43,7 +43,7 @@ export default function EventDetailsPage() {
   const router = useRouter();
   const params = useParams();
   const eventId = params.id as string;
-  const { success, error: showError, info } = useToast();// Component state
+  // Component state
   const [event, setEvent] = useState<Event | null>(null);
   const [questions, setQuestions] = useState<ExtendedQuestion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,7 +54,10 @@ export default function EventDetailsPage() {
   const [expandedRelatedQuestions, setExpandedRelatedQuestions] = useState<Set<string>>(new Set());  // Track which moderator notes are being edited
   const [editingModeratorNotes, setEditingModeratorNotes] = useState<Set<string>>(new Set());
   const [moderatorNoteTexts, setModeratorNoteTexts] = useState<Record<string, string>>({});
-  
+    // Track processing state to prevent duplicate calls
+  const [processingActions, setProcessingActions] = useState<Set<string>>(new Set());
+  const lastActionRef = useRef<{ action: string; timestamp: number } | null>(null);
+
   // Initialize moderator note texts when questions load
   useEffect(() => {
     const noteTexts: Record<string, string> = {};
@@ -271,17 +274,23 @@ export default function EventDetailsPage() {
    * Users can only vote once per question (toggle vote on/off)
    */
   const handleVote = useCallback((questionId: string) => {
+    const actionKey = `vote-${questionId}`;
+    const now = Date.now();
+    
+    // Prevent duplicate calls within 1 second
+    if (lastActionRef.current?.action === actionKey && 
+        (now - lastActionRef.current.timestamp) < 1000) {
+      console.log('Duplicate vote action prevented');
+      return;
+    }
+    
+    lastActionRef.current = { action: actionKey, timestamp: now };
+    console.log('handleVote called for question:', questionId);
+    
     setQuestions(prev => prev.map(q => {
       if (q.id === questionId) {
         const hasVoted = q.hasUserUpvoted;
         const newVoteCount = hasVoted ? q.upvotes - 1 : q.upvotes + 1;
-        
-        // Show toast notification
-        if (hasVoted) {
-          info('Vote removed', 'Your vote has been removed from this question');
-        } else {
-          success('Vote added', 'Your vote has been added to this question');
-        }
         
         return {
           ...q,
@@ -291,41 +300,45 @@ export default function EventDetailsPage() {
       }
       return q;
     }));
-  }, [success, info]);
-
-  /**
+  }, []);  /**
    * Handle question starring (moderator/presenter only)
    */
   const handleStar = useCallback((questionId: string) => {
     if (!canModerate) return;
     
+    const actionKey = `star-${questionId}`;
+    const now = Date.now();
+    
+    // Prevent duplicate calls within 1 second
+    if (lastActionRef.current?.action === actionKey && 
+        (now - lastActionRef.current.timestamp) < 1000) {
+      console.log('Duplicate star action prevented');
+      return;
+    }
+    
+    lastActionRef.current = { action: actionKey, timestamp: now };
+    console.log('handleStar called for question:', questionId);
+    
     setQuestions(prev => prev.map(q => {
       if (q.id === questionId) {
         const newStarred = !q.isStarred;
-        
-        // Show toast notification
-        if (newStarred) {
-          success('Question starred', 'Question has been marked as important');
-        } else {
-          info('Star removed', 'Question is no longer starred');
-        }
         
         return { ...q, isStarred: newStarred };
       }
       return q;
     }));
-  }, [canModerate, success, info]);
-  /**
+  }, [canModerate]);/**
    * Handle staging question (moderator/presenter only)
    * Only one question can be staged at a time
    */
-  const handleStage = (questionId: string) => {
+  const handleStage = useCallback((questionId: string) => {
     if (!canModerate) return;
-    
-    setQuestions(prev => prev.map(q => {
+      setQuestions(prev => prev.map(q => {
       if (q.id === questionId) {
+        const newStaged = !q.isOnStage;
+        
         // Toggle the clicked question's stage status
-        return { ...q, isOnStage: !q.isOnStage };
+        return { ...q, isOnStage: newStaged };
       } else {
         // If we're staging a new question, unstage all others
         // If we're unstaging the current question, leave others as they are
@@ -338,25 +351,25 @@ export default function EventDetailsPage() {
         return q;
       }
     }));
-  };
-
-  /**
+  }, [canModerate]);/**
    * Handle marking question as answered (moderator/presenter only)
    */
-  const handleAnswer = (questionId: string) => {
+  const handleAnswer = useCallback((questionId: string) => {
     if (!canModerate) return;
-    
-    setQuestions(prev => prev.map(q => 
-      q.id === questionId 
-        ? { 
-            ...q, 
-            isAnswered: !q.isAnswered,
-            answeredBy: q.isAnswered ? undefined : user?.email,
-            answeredAt: q.isAnswered ? undefined : new Date()
-          }
-        : q
-    ));
-  };
+      setQuestions(prev => prev.map(q => {
+      if (q.id === questionId) {
+        const newAnswered = !q.isAnswered;
+        
+        return { 
+          ...q, 
+          isAnswered: newAnswered,
+          answeredBy: newAnswered ? user?.email : undefined,
+          answeredAt: newAnswered ? new Date() : undefined
+        };
+      }
+      return q;
+    }));
+  }, [canModerate, user?.email]);
 
   /**
    * Toggle the expanded state of related questions for a specific question
@@ -625,9 +638,12 @@ export default function EventDetailsPage() {
                 {/* Question Content */}
                 <div className="p-6">
                   <div className="flex space-x-4">                    {/* Vote Section */}
-                    <div className="flex flex-col items-center">
-                      <button
-                        onClick={() => handleVote(question.id)}
+                    <div className="flex flex-col items-center">                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleVote(question.id);
+                        }}
                         className={`flex flex-col items-center p-3 rounded-lg transition-colors group ${
                           question.hasUserUpvoted
                             ? 'bg-primary-100 text-primary-600'
@@ -784,9 +800,12 @@ export default function EventDetailsPage() {
 
                     {/* Action Buttons */}
                     {canModerate && (
-                      <div className="flex flex-col space-y-2">
-                        <button
-                          onClick={() => handleStar(question.id)}
+                      <div className="flex flex-col space-y-2">                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleStar(question.id);
+                          }}
                           className={`p-2 rounded-lg transition-colors tooltip ${
                             question.isStarred
                               ? 'bg-yellow-100 text-yellow-600 border border-yellow-200'
