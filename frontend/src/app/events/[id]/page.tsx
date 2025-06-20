@@ -388,7 +388,7 @@ export default function EventDetailsPage() {
    * Start editing a moderator note
    */
   const startEditingNote = (questionId: string) => {
-    if (!isModerator) return;
+    if (!canModerate) return;
     
     setEditingModeratorNotes(prev => new Set(prev).add(questionId));
     
@@ -420,7 +420,7 @@ export default function EventDetailsPage() {
    * Save a moderator note
    */
   const saveModeratorNote = (questionId: string) => {
-    if (!isModerator) return;
+    if (!canModerate) return;
     
     const noteText = moderatorNoteTexts[questionId]?.trim() || '';
     
@@ -688,7 +688,7 @@ export default function EventDetailsPage() {
                             </div>
                             <div className="flex-1">
                               <div className="flex items-center justify-between mb-2">
-                                <h4 className="font-medium text-blue-900">Moderator Note</h4>                                {!editingModeratorNotes.has(question.id) && isModerator && (
+                                <h4 className="font-medium text-blue-900">Moderator Note</h4>                                {!editingModeratorNotes.has(question.id) && canModerate && (
                                   <button
                                     onClick={() => startEditingNote(question.id)}
                                     className="text-blue-600 hover:text-blue-800 text-sm font-medium"
