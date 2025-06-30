@@ -7,21 +7,22 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # Health check
-    path('health/', views.api_health, name='api_health'),
+    # Authentication
+    path('auth/login/', views.login_view, name='login'),
+    path('auth/logout/', views.logout_view, name='logout'),
+    path('auth/me/', views.me_view, name='me'),
     
-    # User endpoints
-    path('users/', views.UserListCreateView.as_view(), name='user_list_create'),
-    path('users/<int:pk>/', views.UserDetailView.as_view(), name='user_detail'),
-    path('users/<int:user_id>/events/', views.user_events, name='user_events'),
+    # Events
+    path('events/', views.EventListCreateView.as_view(), name='event-list-create'),
+    path('events/<uuid:pk>/', views.EventDetailView.as_view(), name='event-detail'),
+    path('events/join/<str:share_link>/', views.join_event_view, name='join-event'),
     
-    # Event endpoints
-    path('events/', views.EventListCreateView.as_view(), name='event_list_create'),
-    path('events/<int:pk>/', views.EventDetailView.as_view(), name='event_detail'),
-    path('events/<int:event_id>/questions/', views.event_questions, name='event_questions'),
+    # Questions
+    path('events/<uuid:event_id>/questions/', views.QuestionListCreateView.as_view(), name='question-list-create'),
+    path('questions/<uuid:pk>/', views.QuestionDetailView.as_view(), name='question-detail'),
     
-    # Question endpoints
-    path('questions/', views.QuestionListCreateView.as_view(), name='question_list_create'),
-    path('questions/<int:pk>/', views.QuestionDetailView.as_view(), name='question_detail'),
-    path('questions/<int:question_id>/vote/', views.vote_question, name='question_vote'),
+    # Voting and Actions
+    path('questions/<uuid:question_id>/upvote/', views.upvote_question_view, name='upvote-question'),
+    path('questions/<uuid:question_id>/star/', views.star_question_view, name='star-question'),
+    path('questions/<uuid:question_id>/stage/', views.stage_question_view, name='stage-question'),
 ]

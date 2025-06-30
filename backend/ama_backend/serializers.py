@@ -1,24 +1,16 @@
-"""
-Serializers for the AMA app API.
-Converts Django model instances to/from JSON for API responses.
-"""
+ # You need to create this new file with all the serializers that convert your Django models to/from JSON:
 
 from rest_framework import serializers
-from django.contrib.auth import authenticate
 from .models import User, Event, Question, Vote
-
+from django.contrib.auth import authenticate
 
 class UserSerializer(serializers.ModelSerializer):
-    """Serializer for User model."""
-    
     class Meta:
         model = User
-        fields = ['id', 'name', 'email', 'role', 'is_anonymous']
+        fields = ['id', 'email', 'name', 'role', 'is_anonymous']
         read_only_fields = ['id']
 
-
 class LoginSerializer(serializers.Serializer):
-    """Serializer for user login."""
     email = serializers.EmailField()
     password = serializers.CharField()
     
@@ -38,9 +30,7 @@ class LoginSerializer(serializers.Serializer):
         
         return attrs
 
-
 class EventSerializer(serializers.ModelSerializer):
-    """Serializer for Event model."""
     moderators = UserSerializer(many=True, read_only=True)
     participants = UserSerializer(many=True, read_only=True)
     created_by = UserSerializer(read_only=True)
@@ -56,18 +46,7 @@ class EventSerializer(serializers.ModelSerializer):
     def get_question_count(self, obj):
         return obj.questions.count()
 
-
-class EventCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating new events."""
-    
-    class Meta:
-        model = Event
-        fields = ['id', 'name', 'created_by_id', 'open_date', 
-                  'close_date', 'share_link']
-
-
 class QuestionSerializer(serializers.ModelSerializer):
-    """Serializer for Question model."""
     author = UserSerializer(read_only=True)
     upvotes = serializers.SerializerMethodField()
     has_user_upvoted = serializers.SerializerMethodField()
@@ -95,30 +74,7 @@ class QuestionSerializer(serializers.ModelSerializer):
             return QuestionSerializer(obj.grouped_questions.all(), many=True, context=self.context).data
         return []
 
-
-class QuestionCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating new questions."""
-    
-    class Meta:
-        model = Question
-        fields = ['id', 'text', 'author_id', 'event_id', 'is_anonymous']
-
-
-class QuestionVoteSerializer(serializers.Serializer):
-    """Serializer for voting on questions."""
-    vote_type = serializers.ChoiceField(choices=['upvote'])
-    
-    
-class QuestionUpdateSerializer(serializers.ModelSerializer):
-    """Serializer for updating question status."""
-    
-    class Meta:
-        model = Question
-        fields = ['is_answered', 'is_starred', 'is_staged', 'presenter_notes']
-
-
 class VoteSerializer(serializers.ModelSerializer):
-    """Serializer for Vote model."""
     class Meta:
         model = Vote
         fields = ['id', 'question', 'user', 'created_at']
