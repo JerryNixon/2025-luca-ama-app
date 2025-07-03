@@ -53,7 +53,7 @@ class Question(models.Model):
     presenter_notes = models.TextField(blank=True, null=True)
     ai_summary = models.TextField(blank=True, null=True)
     parent_question = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='grouped_questions')
-    tags = models.JSONField(default=list, blank=True)
+    tags = models.TextField(default='[]', blank=True)  # Store JSON as text for SQL Server compatibility
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

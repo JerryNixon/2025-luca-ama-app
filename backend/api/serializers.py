@@ -5,6 +5,7 @@ Converts Django model instances to/from JSON for API responses.
 
 from rest_framework import serializers
 from django.contrib.auth import authenticate
+import json
 from .models import User, Event, Question, Vote
 
 
@@ -72,6 +73,7 @@ class QuestionSerializer(serializers.ModelSerializer):
     upvotes = serializers.SerializerMethodField()
     has_user_upvoted = serializers.SerializerMethodField()
     grouped_questions = serializers.SerializerMethodField()
+    tags = serializers.SerializerMethodField()
     
     class Meta:
         model = Question
@@ -94,6 +96,28 @@ class QuestionSerializer(serializers.ModelSerializer):
         if obj.grouped_questions.exists():
             return QuestionSerializer(obj.grouped_questions.all(), many=True, context=self.context).data
         return []
+    
+    def get_tags(self, obj):
+        """Convert tags string to JSON array."""
+        try:
+            return json.loads(obj.tags) if obj.tags else []
+        except json.JSONDecodeError:
+            return []
+    
+    def create(self, validated_data):
+        """Handle tags conversion during creation."""
+        tags_data = validated_data.pop('tags', [])
+        if isinstance(tags_data, list):
+            validated_data['tags'] = json.dumps(tags_data)
+        question = Question.objects.create(**validated_data)
+        return question
+    
+    def update(self, instance, validated_data):
+        """Handle tags conversion during update."""
+        tags_data = validated_data.pop('tags', None)
+        if tags_data is not None and isinstance(tags_data, list):
+            validated_data['tags'] = json.dumps(tags_data)
+        return super().update(instance, validated_data)
 
 
 class QuestionCreateSerializer(serializers.ModelSerializer):
