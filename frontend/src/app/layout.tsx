@@ -9,6 +9,8 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 // Import the authentication context provider to manage user state globally
 import { AuthProvider } from '@/contexts/AuthContext'
+// Import the events context provider to manage events state globally
+import { EventsProvider } from '@/contexts/EventsContext'
 
 // Configure the Inter font with Latin character subset for optimal loading
 // This ensures the font is preloaded and optimized for better performance
@@ -48,12 +50,21 @@ export default function RootLayout({
           - Provide authentication state to all components
           - Handle login/logout functionality globally
           - Manage user session persistence
-        */}        <AuthProvider>
+        */}
+        <AuthProvider>
+          {/* 
+            Wrap with EventsProvider to:
+            - Provide events state to all components
+            - Handle event creation and updates globally
+            - Manage event list refreshing
+          */}
+          <EventsProvider>
             {/* 
               children represents all the page content that will be rendered
               This could be the home page, events page, login page, etc.
             */}
             {children}
+          </EventsProvider>
         </AuthProvider>
       </body>
     </html>

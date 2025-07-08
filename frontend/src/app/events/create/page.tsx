@@ -6,12 +6,16 @@
 
 // Import authentication hook to check user permissions
 import { useAuth } from '@/contexts/AuthContext';
+// Import events context to manage events state
+import { useEvents } from '@/contexts/EventsContext';
 // Import Next.js router for navigation after successful creation
 import { useRouter } from 'next/navigation';
 // Import React hooks for form state management and side effects
 import { useState, useEffect } from 'react';
 // Import Next.js Link component for navigation
 import Link from 'next/link';
+// Import event service for API calls
+import { eventService } from '@/services/eventService';
 
 /**
  * CreateEventPage Component
@@ -29,18 +33,20 @@ import Link from 'next/link';
 export default function CreateEventPage() {
   // Get authentication state and user information
   const { user, isLoading, isAuthenticated } = useAuth();
+  // Get events functions from context
+  const { addEvent, refetchEvents } = useEvents();
   // Get router instance for navigation
   const router = useRouter();
   
   // Form state management
   const [formData, setFormData] = useState({
-    title: '',
+    name: '',                 // Changed from 'title' to match backend
     description: '',
     presenter: '',
     scheduledDate: '',
     scheduledTime: '',
-    duration: '60', // Default duration in minutes
-    maxQuestions: '50' // Default max questions
+    duration: '60',          // Default duration in minutes
+    maxQuestions: '50'       // Default max questions
   });
   
   // UI state management
@@ -97,8 +103,8 @@ export default function CreateEventPage() {
 
     try {
       // Basic form validation
-      if (!formData.title.trim()) {
-        throw new Error('Event title is required');
+      if (!formData.name.trim()) {
+        throw new Error('Event name is required');
       }
       if (!formData.description.trim()) {
         throw new Error('Event description is required');
@@ -113,11 +119,30 @@ export default function CreateEventPage() {
         throw new Error('Event time is required');
       }
 
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Combine date and time for open_date if provided
+      let open_date = null;
+      if (formData.scheduledDate && formData.scheduledTime) {
+        open_date = new Date(`${formData.scheduledDate}T${formData.scheduledTime}`).toISOString();
+      }
 
-      // In a real app, this would make an API call to create the event
-      console.log('Creating event with data:', formData);
+      // Prepare event data for API
+      const eventData = {
+        name: formData.name.trim(),
+        open_date: open_date,
+        close_date: null, // Can be extended later
+      };
+
+      console.log('Creating event with data:', eventData);
+      
+      // Call the actual API to create the event
+      const createdEvent = await eventService.createEvent(eventData);
+      console.log('Event created successfully:', createdEvent);
+      
+      // Add the event to the global state immediately
+      addEvent(createdEvent);
+      
+      // Also trigger a refetch to ensure consistency
+      refetchEvents();
       
       // Show success message
       setSuccess(true);
@@ -125,7 +150,7 @@ export default function CreateEventPage() {
       // Redirect to events page after short delay
       setTimeout(() => {
         router.push('/events');
-      }, 2000);
+      }, 1500);
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create event');
@@ -233,14 +258,14 @@ export default function CreateEventPage() {
               
               {/* Event Title */}
               <div>
-                <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-                  Event Title *
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                  Event Name *
                 </label>
                 <input
                   type="text"
-                  id="title"
-                  name="title"
-                  value={formData.title}
+                  id="name"
+                  name="name"
+                  value={formData.name}
                   onChange={handleInputChange}
                   placeholder="e.g., AMA with Tech Lead - Career Advice"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"

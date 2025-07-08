@@ -5,23 +5,18 @@
 'use client';
 
 // Import React hooks for state management and side effects
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 // Import authentication context to check user permissions
 import { useAuth } from '@/contexts/AuthContext';
+// Import events context to manage events state
+import { useEvents } from '@/contexts/EventsContext';
 // Import TypeScript types for type safety
 import { Event } from '@/types';
-// Import services for data fetching
-import { eventService } from '@/services/eventService';
-import { demoService } from '@/lib/demoData';
 // Import reusable components
 import EventCard from '@/components/events/EventCard';
 // Import Next.js components for navigation
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-
-// Development toggle - switch between demo data and real API
-// Set to false when backend API is ready for production
-const USE_DEMO_DATA = false;
+import { useRouter, usePathname } from 'next/navigation';
 
 /**
  * EventsPage Component
@@ -33,26 +28,26 @@ const USE_DEMO_DATA = false;
  * - Role-based permissions for event creation
  * - Event filtering and navigation
  * - Empty state handling
+ * - Global state management for events
  * 
  * @returns JSX element representing the events listing page
  */
 export default function EventsPage() {
   // Get authentication state and user information
   const { user, isAuthenticated } = useAuth();
+  // Get events state and functions from context
+  const { events, loading, error, refetchEvents } = useEvents();
   // Router for programmatic navigation
   const router = useRouter();
-  
-  // Component state management
-  const [events, setEvents] = useState<Event[]>([]);         // Array of events to display
-  const [loading, setLoading] = useState(true);             // Loading state for UI feedback
-  const [error, setError] = useState<string | null>(null);  // Error state for error handling
+  // Current pathname for route change detection
+  const pathname = usePathname();
 
   // Debug logging
   console.log('Events page render - events:', events);
   console.log('Events page render - loading:', loading);
   console.log('Events page render - error:', error);
 
-  // Effect hook to fetch events when component mounts or authentication changes
+  // Effect hook to redirect unauthenticated users and handle route changes
   useEffect(() => {
     // Redirect unauthenticated users to login page
     if (!isAuthenticated) {
@@ -60,44 +55,40 @@ export default function EventsPage() {
       return;
     }
 
-    /**
-     * Async function to fetch events from either demo service or real API
-     * Handles both success and error cases with appropriate state updates
-     */
-    const fetchEvents = async () => {
-      try {
-        let eventsData: Event[];
-        
-        // Choose data source based on development flag
-        if (USE_DEMO_DATA) {
-          // Use demo data for development/testing
-          eventsData = await demoService.getEvents();
-        } else {
-          // Use real API service for production
-          console.log('Fetching events from API...');
-          eventsData = await eventService.getEvents();
-          console.log('Events fetched:', eventsData);
-        }
-        
-        // Update state with fetched events
-        setEvents(eventsData);
-        console.log('Events state updated:', eventsData);
-      } catch (err) {
-        // Handle any errors during data fetching
-        console.error('Error details:', err);
-        console.error('Error message:', (err as Error).message);
-        console.error('Error stack:', (err as Error).stack);
-        setError(`Failed to load events: ${(err as Error).message}`);
-        console.error('Failed to fetch events:', err);
-      } finally {
-        // Always set loading to false, regardless of success or failure
-        setLoading(false);
+    // Refetch events when returning to the events page
+    if (pathname === '/events') {
+      console.log('Returned to events page, refetching events...');
+      refetchEvents();
+    }
+  }, [isAuthenticated, pathname, router, refetchEvents]);
+
+  // Effect hook to refetch events when page comes back into focus
+  // This ensures new events are shown when returning from event creation
+  useEffect(() => {
+    const handleFocus = () => {
+      if (isAuthenticated) {
+        console.log('Page focused, refetching events...');
+        refetchEvents();
       }
     };
 
-    // Execute the fetch function
-    fetchEvents();
-  }, [isAuthenticated, router]); // Re-run effect when these dependencies change
+    // Add focus event listener
+    window.addEventListener('focus', handleFocus);
+    
+    // Cleanup event listener on unmount
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [isAuthenticated, refetchEvents]);
+
+  /**
+   * Handle manual refresh of events list
+   * Allows users to refresh the events list manually
+   */
+  const handleRefresh = () => {
+    console.log('Manual refresh triggered');
+    refetchEvents();
+  };
 
   /**
    * Handle clicking on an event card
@@ -159,9 +150,19 @@ export default function EventsPage() {
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
-          {/* Page Header with conditional Create button */}
+          {/* Page Header with conditional Create button and Refresh button */}
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">AMA Events</h1>
+            <div className="flex items-center space-x-4">
+              <h1 className="text-3xl font-bold text-gray-900">AMA Events</h1>
+              <button
+                onClick={handleRefresh}
+                disabled={loading}
+                className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Refresh events list"
+              >
+                {loading ? '🔄' : '↻'} Refresh
+              </button>
+            </div>
             {/* Only show Create button to authorized users */}
             {canCreateEvents && (
               <Link
