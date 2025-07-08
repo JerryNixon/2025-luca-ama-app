@@ -47,28 +47,28 @@ export default function EventsPage() {
   console.log('Events page render - loading:', loading);
   console.log('Events page render - error:', error);
 
-  // Effect hook to redirect unauthenticated users and handle route changes
+  // Effect hook to redirect unauthenticated users
   useEffect(() => {
     // Redirect unauthenticated users to login page
     if (!isAuthenticated) {
       router.push('/login');
       return;
     }
+  }, [isAuthenticated, router]);
 
-    // Refetch events when returning to the events page
-    if (pathname === '/events') {
-      console.log('Returned to events page, refetching events...');
-      refetchEvents();
-    }
-  }, [isAuthenticated, pathname, router, refetchEvents]);
-
-  // Effect hook to refetch events when page comes back into focus
-  // This ensures new events are shown when returning from event creation
+  // Effect hook to refetch events when page comes back into focus (debounced)
   useEffect(() => {
+    let focusTimeout: NodeJS.Timeout;
+    
     const handleFocus = () => {
       if (isAuthenticated) {
-        console.log('Page focused, refetching events...');
-        refetchEvents();
+        // Clear any existing timeout
+        clearTimeout(focusTimeout);
+        // Debounce the refetch call
+        focusTimeout = setTimeout(() => {
+          console.log('Page focused, refetching events...');
+          refetchEvents();
+        }, 500); // 500ms debounce
       }
     };
 
@@ -78,6 +78,7 @@ export default function EventsPage() {
     // Cleanup event listener on unmount
     return () => {
       window.removeEventListener('focus', handleFocus);
+      clearTimeout(focusTimeout);
     };
   }, [isAuthenticated, refetchEvents]);
 
@@ -103,9 +104,12 @@ export default function EventsPage() {
   // Loading state UI - shows spinner while fetching data
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        {/* Tailwind CSS animated spinner */}
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading events...</p>
+          <p className="text-xs text-gray-500 mt-2">This may take a moment while connecting to the database</p>
+        </div>
       </div>
     );
   }
@@ -113,10 +117,17 @@ export default function EventsPage() {
   // Error state UI - shows error message if data fetching fails
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-red-600 mb-2">Error</h2>
-          <p className="text-gray-600">{error}</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center max-w-md mx-auto p-6">
+          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <h2 className="text-xl font-semibold text-red-600 mb-2">Connection Error</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={handleRefresh}
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );

@@ -32,29 +32,46 @@ export const eventService = {
    */
   async getEvents(): Promise<Event[]> {
     console.log('EventService: Fetching events from API...');
-    // Request all events from the server
-    // Authentication token is automatically included by the API client
-    const response = await apiClient.get('/events/');
-    console.log('EventService: Raw response:', response);
-    console.log('EventService: Response data:', response.data);
-    
-    // Handle different response formats
-    if (response.data && typeof response.data === 'object') {
-      // If response has success/data wrapper
-      if ('success' in response.data && 'data' in response.data) {
-        console.log('EventService: Using wrapped format');
-        return response.data.data;
+    try {
+      // Request all events from the server
+      // Authentication token is automatically included by the API client
+      const response = await apiClient.get('/events/');
+      console.log('EventService: Raw response:', response);
+      console.log('EventService: Response data:', response.data);
+      
+      // Handle different response formats
+      if (response.data && typeof response.data === 'object') {
+        // If response has success/data wrapper
+        if ('success' in response.data && 'data' in response.data) {
+          console.log('EventService: Using wrapped format');
+          return response.data.data;
+        }
+        // If response is a plain array (DRF default)
+        else if (Array.isArray(response.data)) {
+          console.log('EventService: Using plain array format');
+          return response.data;
+        }
       }
-      // If response is a plain array (DRF default)
-      else if (Array.isArray(response.data)) {
-        console.log('EventService: Using plain array format');
-        return response.data;
+      
+      // Fallback to empty array
+      console.log('EventService: No valid data found, returning empty array');
+      return [];
+    } catch (error: any) {
+      console.error('EventService: Error fetching events:', error);
+      
+      // Handle timeout errors specifically
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('Request timed out. Please check your internet connection and try again.');
       }
+      
+      // Handle network errors
+      if (error.message === 'Network Error') {
+        throw new Error('Network error. Please check if the backend server is running.');
+      }
+      
+      // Re-throw other errors
+      throw error;
     }
-    
-    // Fallback to empty array
-    console.log('EventService: No valid data found, returning empty array');
-    return [];
   },
 
   /**

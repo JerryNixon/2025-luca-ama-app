@@ -21,7 +21,7 @@ const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api',
   
   // Request timeout in milliseconds - increased for database operations
-  timeout: 15000,
+  timeout: 30000, // Increased from 15000 to 30000 (30 seconds)
   
   // Default headers sent with every request
   headers: {

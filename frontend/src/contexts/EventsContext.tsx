@@ -36,13 +36,15 @@ export const EventsProvider: React.FC<EventsProviderProps> = ({ children }) => {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isRefetching, setIsRefetching] = useState(false);
   const { isAuthenticated } = useAuth();
 
   const refetchEvents = async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || isRefetching) return;
     
     try {
       console.log('EventsContext: Fetching events...');
+      setIsRefetching(true);
       setLoading(true);
       setError(null);
       const eventsData = await eventService.getEvents();
@@ -53,6 +55,8 @@ export const EventsProvider: React.FC<EventsProviderProps> = ({ children }) => {
       setError(err instanceof Error ? err.message : 'Failed to fetch events');
     } finally {
       setLoading(false);
+      // Add a small delay to prevent rapid successive calls
+      setTimeout(() => setIsRefetching(false), 1000);
     }
   };
 
