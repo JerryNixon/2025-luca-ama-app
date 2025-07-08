@@ -21,7 +21,7 @@ import { useRouter } from 'next/navigation';
 
 // Development toggle - switch between demo data and real API
 // Set to false when backend API is ready for production
-const USE_DEMO_DATA = true;
+const USE_DEMO_DATA = false;
 
 /**
  * EventsPage Component
@@ -47,6 +47,11 @@ export default function EventsPage() {
   const [loading, setLoading] = useState(true);             // Loading state for UI feedback
   const [error, setError] = useState<string | null>(null);  // Error state for error handling
 
+  // Debug logging
+  console.log('Events page render - events:', events);
+  console.log('Events page render - loading:', loading);
+  console.log('Events page render - error:', error);
+
   // Effect hook to fetch events when component mounts or authentication changes
   useEffect(() => {
     // Redirect unauthenticated users to login page
@@ -69,14 +74,20 @@ export default function EventsPage() {
           eventsData = await demoService.getEvents();
         } else {
           // Use real API service for production
+          console.log('Fetching events from API...');
           eventsData = await eventService.getEvents();
+          console.log('Events fetched:', eventsData);
         }
         
         // Update state with fetched events
         setEvents(eventsData);
+        console.log('Events state updated:', eventsData);
       } catch (err) {
         // Handle any errors during data fetching
-        setError('Failed to load events');
+        console.error('Error details:', err);
+        console.error('Error message:', (err as Error).message);
+        console.error('Error stack:', (err as Error).stack);
+        setError(`Failed to load events: ${(err as Error).message}`);
         console.error('Failed to fetch events:', err);
       } finally {
         // Always set loading to false, regardless of success or failure
@@ -163,7 +174,7 @@ export default function EventsPage() {
           </div>
 
           {/* Conditional rendering based on events availability */}
-          {events.length === 0 ? (
+          {!events || events.length === 0 ? (
             // Empty State - No events available
             <div className="text-center py-12">
               <h3 className="text-lg font-medium text-gray-900 mb-2">No events found</h3>

@@ -17,16 +17,20 @@ import Cookies from 'js-cookie';
  * - Centralized error handling and redirects
  */
 const apiClient = axios.create({
-  // Base URL for all API requests - uses environment variable or defaults to local development
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api',
+  // Base URL for all API requests - points to Django backend
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api',
   
-  // Request timeout in milliseconds - prevents hanging requests
-  timeout: 10000,
+  // Request timeout in milliseconds - increased for database operations
+  timeout: 15000,
   
   // Default headers sent with every request
   headers: {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
   },
+  
+  // Enable credentials for authentication
+  withCredentials: false,  // Using Authorization header instead
 });
 
 /**

@@ -60,8 +60,8 @@ export default function LoginPage() {
     try {
       // Attempt to authenticate user with provided credentials
       await login({ email, password });
-      // If login successful, redirect to home page
-      router.push('/');
+      // If login successful, redirect to dashboard page
+      router.push('/dashboard');
     } catch (err) {
       // If login fails, show user-friendly error message
       setError('Invalid credentials. Please try again.');
@@ -151,9 +151,9 @@ export default function LoginPage() {
 
           {/* Demo Credentials and Navigation */}
           <div className="text-center text-sm text-gray-600">
-            {/* Demo credentials for testing purposes */}
-            <p>Demo Login:</p>
-            <p>Email: demo@microsoft.com | Password: demo123</p>
+            {/* Test credentials for authentication */}
+            <p>Test Login:</p>
+            <p>Email: moderator@microsoft.com | Password: moderator123</p>
             {/* Link back to home page */}
             <p className="mt-2">
               <Link href="/" className="text-primary-600 hover:text-primary-500">

@@ -31,10 +31,30 @@ export const eventService = {
    * @throws Error if API request fails or user is not authenticated
    */
   async getEvents(): Promise<Event[]> {
+    console.log('EventService: Fetching events from API...');
     // Request all events from the server
     // Authentication token is automatically included by the API client
-    const response = await apiClient.get<ApiResponse<Event[]>>('/events/');
-    return response.data.data;
+    const response = await apiClient.get('/events/');
+    console.log('EventService: Raw response:', response);
+    console.log('EventService: Response data:', response.data);
+    
+    // Handle different response formats
+    if (response.data && typeof response.data === 'object') {
+      // If response has success/data wrapper
+      if ('success' in response.data && 'data' in response.data) {
+        console.log('EventService: Using wrapped format');
+        return response.data.data;
+      }
+      // If response is a plain array (DRF default)
+      else if (Array.isArray(response.data)) {
+        console.log('EventService: Using plain array format');
+        return response.data;
+      }
+    }
+    
+    // Fallback to empty array
+    console.log('EventService: No valid data found, returning empty array');
+    return [];
   },
 
   /**
@@ -64,9 +84,27 @@ export const eventService = {
    * @throws Error if user lacks permissions or data validation fails
    */
   async createEvent(eventData: CreateEventForm): Promise<Event> {
+    console.log('EventService: Creating event with data:', eventData);
     // Send event creation request to the server
-    const response = await apiClient.post<ApiResponse<Event>>('/events/', eventData);
-    return response.data.data;
+    const response = await apiClient.post('/events/', eventData);
+    console.log('EventService: Create response:', response);
+    console.log('EventService: Create response data:', response.data);
+    
+    // Handle different response formats
+    if (response.data && typeof response.data === 'object') {
+      // If response has success/data wrapper
+      if ('success' in response.data && 'data' in response.data) {
+        console.log('EventService: Using wrapped format for created event');
+        return response.data.data;
+      }
+      // If response is a plain object (DRF default)
+      else if ('id' in response.data) {
+        console.log('EventService: Using plain object format for created event');
+        return response.data;
+      }
+    }
+    
+    throw new Error('Invalid response format from server');
   },
 
   /**

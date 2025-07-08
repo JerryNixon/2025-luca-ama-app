@@ -39,9 +39,9 @@ interface EventCardProps {
 export default function EventCard({ event, onClick, userRole }: EventCardProps) {
   // Determine if the event is currently active
   // An event is active if:
-  // 1. The isActive flag is true, AND
+  // 1. The is_active flag is true, AND
   // 2. Either there's no close date OR the close date hasn't passed yet
-  const isActive = event.isActive && (!event.closeDate || new Date() < event.closeDate);
+  const isActive = event.is_active && (!event.close_date || new Date() < new Date(event.close_date));
   
   // Check if current user has moderation privileges
   // Moderators and presenters see additional information and controls
@@ -79,18 +79,18 @@ export default function EventCard({ event, onClick, userRole }: EventCardProps) 
           <div className="space-y-2 text-sm text-gray-600">
             
             {/* Event Open Date - When the event starts accepting questions */}
-            {event.openDate && (
+            {event.open_date && (
               <div className="flex items-center gap-2">
                 <FiClock className="w-4 h-4" />
-                <span>Opens: {format(event.openDate, 'MMM dd, yyyy HH:mm')}</span>
+                <span>Opens: {format(new Date(event.open_date), 'MMM dd, yyyy HH:mm')}</span>
               </div>
             )}
             
             {/* Event Close Date - When the event stops accepting questions */}
-            {event.closeDate && (
+            {event.close_date && (
               <div className="flex items-center gap-2">
                 <FiClock className="w-4 h-4" />
-                <span>Closes: {format(event.closeDate, 'MMM dd, yyyy HH:mm')}</span>
+                <span>Closes: {format(new Date(event.close_date), 'MMM dd, yyyy HH:mm')}</span>
               </div>
             )}
 
@@ -114,7 +114,7 @@ export default function EventCard({ event, onClick, userRole }: EventCardProps) 
 
             {/* Event Creation Date - Provides context about when the event was set up */}
             <div className="text-xs text-gray-500">
-              Created {format(event.createdAt, 'MMM dd, yyyy')}
+              Created {format(new Date(event.created_at), 'MMM dd, yyyy')}
             </div>
           </div>
         </div>

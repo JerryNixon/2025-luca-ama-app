@@ -81,8 +81,27 @@ TEMPLATES = [
 WSGI_APPLICATION = 'ama_backend.wsgi.application'
 
 
-# Database - MSIT Fabric SQL Database Configuration
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+# Microsoft Fabric SQL Database Configuration
+# This project uses Microsoft Fabric SQL Database exclusively
+print("🔗 Configuring Microsoft Fabric SQL Database connection...")
+
+# Get authentication method from environment
+auth_method = os.getenv('AUTH_METHOD', 'ActiveDirectoryIntegrated')
+print(f"📡 Using authentication method: {auth_method}")
+
+# Build connection string based on authentication method
+if auth_method == 'ActiveDirectoryInteractive':
+    # Opens a browser/dialog for Azure AD login (first time)
+    extra_params = 'Authentication=ActiveDirectoryInteractive;Encrypt=yes;TrustServerCertificate=no;ConnectTimeout=30;Command Timeout=60'
+elif auth_method == 'ActiveDirectoryDefault':
+    # Uses cached Azure AD credentials (after first login)
+    extra_params = 'Authentication=ActiveDirectoryDefault;Encrypt=yes;TrustServerCertificate=no;ConnectTimeout=30;Command Timeout=60'
+elif auth_method == 'ActiveDirectoryIntegrated':
+    # Uses Azure AD integrated authentication (not Windows integrated)
+    extra_params = 'Authentication=ActiveDirectoryIntegrated;Encrypt=yes;TrustServerCertificate=no;ConnectTimeout=30;Command Timeout=60'
+else:
+    # Fallback without specific authentication (let SQL Server handle it)
+    extra_params = 'Encrypt=yes;TrustServerCertificate=no;ConnectTimeout=30;Command Timeout=60'
 
 DATABASES = {
     'default': {
@@ -90,14 +109,19 @@ DATABASES = {
         'NAME': os.getenv('DB_NAME'),
         'HOST': os.getenv('DB_HOST'),
         'PORT': os.getenv('DB_PORT', '1433'),
-        'USER': os.getenv('DB_USER'),
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'USER': os.getenv('DB_USER'),  # Use the actual user from .env
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),  # Empty for Azure AD auth
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
-            'extra_params': 'Authentication=ActiveDirectoryInteractive;Encrypt=yes;TrustServerCertificate=no;ConnectTimeout=30'
+            'extra_params': extra_params
         },
     }
 }
+
+print(f"Database: {DATABASES['default']['NAME']}")
+print(f"Host: {DATABASES['default']['HOST']}")
+print(f"User: {DATABASES['default']['USER'] or 'Integrated Auth'}")
+print(f"Auth: {auth_method}")
 
 
 # Password validation
@@ -143,12 +167,27 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS Configuration - Allow frontend to communicate with backend
 CORS_ALLOWED_ORIGINS = [
-    os.getenv('FRONTEND_URL', 'http://localhost:3007'),  # Your Next.js frontend
-    'http://localhost:3000',  # Alternative port
+    'http://localhost:3000',  # Next.js default port
+    'http://127.0.0.1:3000',  # Alternative localhost
     'http://localhost:3001',  # Alternative port
+    'http://127.0.0.1:3001',  # Alternative port
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = False  # Security: only allow specific origins
+
+# Additional CORS headers for authentication
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 
 # Django REST Framework Configuration
 REST_FRAMEWORK = {
@@ -165,10 +204,13 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.JSONParser',
     ],
 }
+
 # JWT Configuration
 from datetime import timedelta
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=24),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
 }

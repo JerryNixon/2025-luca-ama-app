@@ -13,11 +13,12 @@ import { useEffect } from 'react';
 export default function RootPage() {
   const router = useRouter();
   useEffect(() => {
-    // Check for authentication token
-    const demoToken = typeof window !== 'undefined' ? localStorage.getItem('demo_token') : null;
+    // Check for authentication token (cookie for real auth, localStorage for demo)
+    const authToken = typeof window !== 'undefined' ? 
+      (document.cookie.includes('access_token') || localStorage.getItem('demo_token')) : false;
     
-    if (demoToken) {
-      // User is authenticated, redirect to dashboard page (Welcome to Luca AMA)
+    if (authToken) {
+      // User is authenticated, redirect to dashboard page
       console.log('User authenticated, redirecting to dashboard...');
       router.replace('/dashboard');
     } else {

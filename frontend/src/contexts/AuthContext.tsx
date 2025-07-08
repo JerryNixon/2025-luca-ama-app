@@ -19,8 +19,8 @@ import Cookies from 'js-cookie';
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Development toggle for switching between demo data and real API
-// Set to false when backend authentication is ready for production
-const USE_DEMO_DATA = true;
+// Set to false to use real backend authentication with Fabric database
+const USE_DEMO_DATA = false;
 
 /**
  * AuthProvider Component
@@ -105,7 +105,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(loggedInUser);
       } else {
         // Production authentication - authenticate with backend API
+        console.log('Attempting login with:', credentials.email);
         const { user: loggedInUser } = await authService.login(credentials);
+        console.log('Login successful, user:', loggedInUser);
         // Real authentication sets HTTP-only cookie automatically
         setUser(loggedInUser);
       }

@@ -33,15 +33,21 @@ export const authService = {
    * @throws Error if authentication fails (invalid credentials, network issues, etc.)
    */
   async login(credentials: LoginForm): Promise<{ user: User; token: string }> {
+    console.log('AuthService: Attempting login for', credentials.email);
     // Make POST request to login endpoint with user credentials
     const response = await apiClient.post<ApiResponse<{ user: User; token: string }>>('/auth/login/', credentials);
     
+    console.log('AuthService: Login response status', response.status);
+    console.log('AuthService: Login response data', response.data);
+    
     // Extract user and token from API response
     const { user, token } = response.data.data;
-      // Store authentication token in secure HTTP-only cookie
+    console.log('AuthService: Setting cookie with token');
+    // Store authentication token in secure HTTP-only cookie
     // Cookie expires in 7 days and is automatically sent with future requests
     Cookies.set('access_token', token, { expires: 7 });
     
+    console.log('AuthService: Cookie set, returning user and token');
     return { user, token };
   },
 

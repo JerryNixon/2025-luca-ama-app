@@ -31,15 +31,16 @@ export interface User {
 export interface Event {
   id: string;                    // Unique identifier for the event
   name: string;                  // Event title (e.g., "Town Hall Q&A")
-  openDate?: Date;               // Optional: when questions can start being submitted
-  closeDate?: Date;              // Optional: when the event ends
-  createdBy: string;             // User ID of who created this event
-  moderators: string[];          // Array of user IDs who can moderate this event
-  participants: string[];        // Array of user IDs who have joined this event
-  shareLink?: string;            // Optional: shareable link for others to join
-  isActive: boolean;             // Whether the event is currently active
-  createdAt: Date;               // When this event was created
-  updatedAt: Date;               // When this event was last modified
+  open_date?: Date;              // Optional: when questions can start being submitted
+  close_date?: Date;             // Optional: when the event ends
+  created_by: any;               // User object who created this event
+  moderators: any[];             // Array of user objects who can moderate this event
+  participants: any[];           // Array of user objects who have joined this event
+  share_link?: string;           // Optional: shareable link for others to join
+  is_active: boolean;            // Whether the event is currently active
+  created_at: Date;              // When this event was created
+  updated_at: Date;              // When this event was last modified
+  question_count?: number;       // Number of questions for this event
 }
 
 // ==============================================================================
