@@ -17,7 +17,6 @@ import { format } from 'date-fns';
 interface EventCardProps {
   event: Event;                                           // Event data to display
   onClick: () => void;                                    // Function to call when card is clicked
-  userRole: 'moderator' | 'presenter' | 'user';         // Current user's role for permission-based features
 }
 
 /**
@@ -26,26 +25,27 @@ interface EventCardProps {
  * A reusable card component that displays event information in a visually appealing format.
  * Features:
  * - Event status indicators (active/inactive)
- * - Role-based information display
+ * - Role-based information display using new permission system
  * - Date formatting and validation
  * - Hover effects and click handling
  * - Responsive design with consistent styling
  * 
  * @param event - Event object containing all event data
  * @param onClick - Callback function executed when the card is clicked
- * @param userRole - Current user's role for determining what information to show
  * @returns JSX element representing an event card
  */
-export default function EventCard({ event, onClick, userRole }: EventCardProps) {
+export default function EventCard({ event, onClick }: EventCardProps) {
   // Determine if the event is currently active
   // An event is active if:
   // 1. The is_active flag is true, AND
   // 2. Either there's no close date OR the close date hasn't passed yet
   const isActive = event.is_active && (!event.close_date || new Date() < new Date(event.close_date));
   
-  // Check if current user has moderation privileges
-  // Moderators and presenters see additional information and controls
-  const canModerate = userRole === 'moderator' || userRole === 'presenter';
+  // Use the new permission system from the backend
+  const userRole = event.user_role_in_event || 'no_access';
+  const canModerate = event.can_user_moderate || false;
+  const canAccess = event.can_user_access || false;
+  const isCreator = event.is_created_by_user || false;
 
   return (
     <div
@@ -66,11 +66,27 @@ export default function EventCard({ event, onClick, userRole }: EventCardProps) 
               </span>
             )}
             
-            {/* User Role Badge - Only shown to moderators and presenters */}
-            {/* Helps users understand their permission level for this event */}
-            {canModerate && (
-              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
-                {userRole}
+            {/* User Role Badge - Shows user's role in this event */}
+            {userRole !== 'no_access' && userRole !== 'visitor' && (
+              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                isCreator ? 'bg-purple-100 text-purple-800' :
+                canModerate ? 'bg-blue-100 text-blue-800' :
+                userRole === 'participant' ? 'bg-yellow-100 text-yellow-800' :
+                'bg-gray-100 text-gray-800'
+              }`}>
+                {isCreator ? 'Creator' : 
+                 canModerate ? 'Moderator' : 
+                 userRole === 'participant' ? 'Participant' : 
+                 'Visitor'}
+              </span>
+            )}
+            
+            {/* Event Privacy Badge - Shows if event is public or private */}
+            {event.is_public !== undefined && (
+              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                event.is_public ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'
+              }`}>
+                {event.is_public ? 'Public' : 'Private'}
               </span>
             )}
           </div>
@@ -102,12 +118,19 @@ export default function EventCard({ event, onClick, userRole }: EventCardProps) 
                 <span>{event.participants.length} participants</span>
               </div>
               
-              {/* Moderator Count - Only visible to users who can moderate */}
-              {/* This helps moderators see how many people are managing the event */}
-              {canModerate && (
+              {/* Moderator Count - Only visible to users who can moderate or are participants */}
+              {(canModerate || userRole === 'participant') && (
                 <div className="flex items-center gap-1">
                   <FiStar className="w-4 h-4" />
                   <span>{event.moderators.length} moderators</span>
+                </div>
+              )}
+              
+              {/* Question Count - Show if available */}
+              {event.question_count !== undefined && (
+                <div className="flex items-center gap-1">
+                  <FiMessageSquare className="w-4 h-4" />
+                  <span>{event.question_count} questions</span>
                 </div>
               )}
             </div>

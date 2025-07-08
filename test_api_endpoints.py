@@ -11,7 +11,7 @@ def test_api():
     
     # Test login
     print("\n1. Testing login...")
-    login_response = requests.post('http://localhost:8000/api/login/', json={
+    login_response = requests.post('http://localhost:8000/api/auth/login/', json={
         'email': 'moderator@microsoft.com',
         'password': 'testpass123'
     })

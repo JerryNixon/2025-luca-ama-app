@@ -125,9 +125,41 @@ export const authService = {
     // Exchange OAuth code for user information and authentication token
     const response = await apiClient.post<ApiResponse<{ user: User; token: string }>>('/auth/microsoft/', { code });
     const { user, token } = response.data.data;
-      // Store authentication token for authenticated sessions
+    // Store authentication token for authenticated sessions
     Cookies.set('access_token', token, { expires: 7 });
     
     return { user, token };
+  },
+
+  /**
+   * Get Microsoft OAuth URL
+   * 
+   * Retrieves the Microsoft OAuth authorization URL for redirecting users
+   * to Microsoft's login page.
+   * 
+   * @returns Promise resolving to OAuth authorization URL
+   */
+  async getMicrosoftOAuthUrl(): Promise<string> {
+    const response = await apiClient.get<ApiResponse<{ auth_url: string }>>('/auth/microsoft/url/');
+    return response.data.data.auth_url;
+  },
+
+  /**
+   * Check if user exists in database
+   * 
+   * Checks if a user with the given email exists in the database
+   * without requiring authentication.
+   * 
+   * @param email - User's email address
+   * @returns Promise resolving to boolean indicating if user exists
+   */
+  async checkUserExists(email: string): Promise<boolean> {
+    try {
+      const response = await apiClient.post<ApiResponse<{ exists: boolean }>>('/auth/check-user/', { email });
+      return response.data.data.exists;
+    } catch (error) {
+      console.error('Error checking user existence:', error);
+      return false;
+    }
   },
 };

@@ -14,6 +14,7 @@ import { useEvents } from '@/contexts/EventsContext';
 import { Event } from '@/types';
 // Import reusable components
 import EventCard from '@/components/events/EventCard';
+import DebugAuth from '@/components/DebugAuth';
 // Import Next.js components for navigation
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
@@ -134,12 +135,13 @@ export default function EventsPage() {
   }
 
   // Check if current user has permission to create events
-  // Only moderators and presenters can create events
-  const canCreateEvents = user?.role === 'moderator' || user?.role === 'presenter';
+  // With the new system, all authenticated users can create events
+  const canCreateEvents = isAuthenticated;
 
   // Main page content - events grid with navigation
   return (
     <div className="min-h-screen bg-gray-50">
+      <DebugAuth />
       {/* Navigation Bar */}
       <nav className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -190,11 +192,10 @@ export default function EventsPage() {
             // Empty State - No events available
             <div className="text-center py-12">
               <h3 className="text-lg font-medium text-gray-900 mb-2">No events found</h3>
-              <p className="text-gray-600 mb-4">
-                {/* Different message based on user permissions */}
-                {canCreateEvents 
-                  ? "Get started by creating your first AMA event." 
-                  : "No events are currently available. Check back later."}
+              <p className="text-gray-600 mb-4">              {/* Different message based on user permissions */}
+              {canCreateEvents 
+                ? "Get started by creating your first AMA event." 
+                : "No events are currently available. Check back later."}
               </p>
               {/* Show create button only to authorized users in empty state */}
               {canCreateEvents && (
@@ -211,7 +212,6 @@ export default function EventsPage() {
                   key={event.id}                                    // Unique key for React rendering
                   event={event}                                     // Event data to display
                   onClick={() => handleEventClick(event.id)}       // Click handler for navigation
-                  userRole={user?.role || 'user'}                  // User role for permission-based features
                 />
               ))}
             </div>

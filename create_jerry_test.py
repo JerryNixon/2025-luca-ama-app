@@ -1,0 +1,152 @@
+#!/usr/bin/env python3
+"""
+Create a simple HTML page to test Jerry's authentication
+"""
+
+html_content = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Jerry Authentication Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { background: #f0f0f0; padding: 10px; margin: 10px 0; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Jerry Authentication Test</h1>
+    
+    <div id="results"></div>
+    
+    <button onclick="testLogin()">Test Jerry Login</button>
+    <button onclick="testMe()">Test /me endpoint</button>
+    <button onclick="testEvents()">Test Events API</button>
+    <button onclick="clearResults()">Clear Results</button>
+    
+    <script>
+        const API_BASE = 'http://localhost:8000/api';
+        
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            results.appendChild(div);
+            results.scrollTop = results.scrollHeight;
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        async function testLogin() {
+            log('Testing Jerry login...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/login/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'jerry.nixon@microsoft.com',
+                        password: 'test123'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log(`✅ Login successful! User: ${data.data.user.name}`, 'success');
+                    log(`Token: ${data.data.token.substring(0, 50)}...`, 'success');
+                    log(`Can create events: ${data.data.user.can_create_events}`, 'success');
+                    
+                    // Store token for other tests
+                    localStorage.setItem('test_token', data.data.token);
+                } else {
+                    log(`❌ Login failed: ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Network error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testMe() {
+            log('Testing /me endpoint...');
+            
+            const token = localStorage.getItem('test_token');
+            if (!token) {
+                log('❌ No token found. Please login first.', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/me/`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log(`✅ /me successful! User: ${data.data.name}`, 'success');
+                    log(`Can create events: ${data.data.can_create_events}`, 'success');
+                } else {
+                    log(`❌ /me failed: ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Network error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testEvents() {
+            log('Testing events API...');
+            
+            const token = localStorage.getItem('test_token');
+            if (!token) {
+                log('❌ No token found. Please login first.', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/events/`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log(`✅ Events API successful! Found ${data.length} events`, 'success');
+                    data.slice(0, 3).forEach((event, index) => {
+                        log(`Event ${index + 1}: ${event.name} (can_moderate: ${event.can_user_moderate})`, 'success');
+                    });
+                } else {
+                    log(`❌ Events API failed: ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Network error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-clear results on page load
+        window.onload = function() {
+            log('Page loaded. Jerry authentication test ready.');
+            log('Jerry credentials: jerry.nixon@microsoft.com / test123');
+        };
+    </script>
+</body>
+</html>
+'''
+
+with open('jerry_auth_test.html', 'w', encoding='utf-8') as f:
+    f.write(html_content)
+
+print("Created jerry_auth_test.html")
+print("Open this file in a browser to test Jerry's authentication")
+print("Make sure both backend (port 8000) and frontend (port 3000) are running")

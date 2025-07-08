@@ -143,11 +143,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  /**
+   * Microsoft OAuth login function
+   * Authenticates user with Microsoft OAuth and updates application state
+   * 
+   * @param code - OAuth authorization code from Microsoft
+   * @throws Error if OAuth authentication fails
+   */
+  const microsoftLogin = async (code: string) => {
+    setIsLoading(true);
+    try {
+      console.log('Attempting Microsoft OAuth login with code:', code);
+      const { user: loggedInUser } = await authService.microsoftLogin(code);
+      console.log('Microsoft OAuth login successful, user:', loggedInUser);
+      setUser(loggedInUser);
+    } catch (error) {
+      console.error('Microsoft OAuth login failed:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Get Microsoft OAuth URL
+   * Returns the URL for Microsoft OAuth authorization
+   */
+  const getMicrosoftOAuthUrl = async () => {
+    try {
+      return await authService.getMicrosoftOAuthUrl();
+    } catch (error) {
+      console.error('Failed to get Microsoft OAuth URL:', error);
+      throw error;
+    }
+  };
+
+  /**
+   * Check if user exists in database
+   * Checks if a user exists without requiring authentication
+   */
+  const checkUserExists = async (email: string) => {
+    try {
+      return await authService.checkUserExists(email);
+    } catch (error) {
+      console.error('Failed to check user existence:', error);
+      return false;
+    }
+  };
+
   // Create context value object with all authentication functionality
   const value: AuthContextType = {
     user,              // Current user object or null
     login,             // Login function
     logout,            // Logout function
+    microsoftLogin,    // Microsoft OAuth login function
+    getMicrosoftOAuthUrl, // Get Microsoft OAuth URL function
+    checkUserExists,   // Check user existence function
     isLoading,         // Loading state for UI feedback
     isAuthenticated,   // Boolean indicating if user is logged in
   };

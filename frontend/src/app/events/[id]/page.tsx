@@ -69,10 +69,11 @@ export default function EventDetailsPage() {
     setModeratorNoteTexts(noteTexts);
   }, [questions]);
 
-  // Role-based permissions
-  const isModerator = user?.role === 'moderator';
-  const isPresenter = user?.role === 'presenter';
-  const canModerate = isModerator || isPresenter;/**
+  // Role-based permissions using new dynamic system
+  const userRole = event?.user_role_in_event || 'no_access';
+  const canModerate = event?.can_user_moderate || false;
+  const canAccess = event?.can_user_access || false;
+  const isCreator = event?.is_created_by_user || false;/**
    * Load event data and questions
    */
   useEffect(() => {
@@ -81,20 +82,26 @@ export default function EventDetailsPage() {
       return;
     }
 
-    // Route users to the user-specific view
-    if (user?.role === 'user') {
-      router.push(`/events/${eventId}/user`);
-      return;
-    }
-
-    // Only moderators and presenters can access the question management interface
-    if (!canModerate) {
+    // Load event data first to check permissions
+    loadEventData();
+  }, [eventId, isAuthenticated, router]);
+  
+  // Permission-based routing effect
+  useEffect(() => {
+    if (!event || loading) return;
+    
+    // Check if user can access this event
+    if (!canAccess) {
       router.push('/events');
       return;
     }
-
-    loadEventData();
-  }, [eventId, isAuthenticated, canModerate, user?.role, router]);
+    
+    // Route users to the user-specific view if they can't moderate
+    if (!canModerate && userRole === 'participant') {
+      router.push(`/events/${eventId}/user`);
+      return;
+    }
+  }, [event, loading, canAccess, canModerate, userRole, eventId, router]);
   /**
    * Filter questions based on active tab
    */
@@ -110,19 +117,29 @@ export default function EventDetailsPage() {
       // Simulate API delay
       await new Promise(resolve => setTimeout(resolve, 800));
 
-      // Mock event data
+      // Mock event data with correct property names and new permission fields
       const mockEvent: Event = {
         id: eventId,
         name: 'Microsoft Fabric Developer Q&A Session',
-        openDate: new Date('2024-01-15T10:00:00'),
-        closeDate: new Date('2024-01-15T12:00:00'),
-        createdBy: 'presenter@microsoft.com',
-        moderators: ['moderator@microsoft.com'],
-        participants: ['demo@microsoft.com', 'presenter@microsoft.com'],
-        shareLink: `https://ama.microsoft.com/events/${eventId}`,
-        isActive: true,
-        createdAt: new Date('2024-01-10T09:00:00'),
-        updatedAt: new Date('2024-01-15T10:30:00')
+        open_date: new Date('2024-01-15T10:00:00'),
+        close_date: new Date('2024-01-15T12:00:00'),
+        created_by: { id: '1', email: 'presenter@microsoft.com', name: 'Presenter', role: 'presenter' },
+        moderators: [{ id: '1', email: 'moderator@microsoft.com', name: 'Moderator', role: 'moderator' }],
+        participants: [
+          { id: '1', email: 'demo@microsoft.com', name: 'Demo User', role: 'user' },
+          { id: '2', email: 'presenter@microsoft.com', name: 'Presenter', role: 'presenter' }
+        ],
+        share_link: `https://ama.microsoft.com/events/${eventId}`,
+        is_active: true,
+        created_at: new Date('2024-01-10T09:00:00'),
+        updated_at: new Date('2024-01-15T10:30:00'),
+        question_count: 3,
+        // New permission fields - simulate as if current user is a moderator
+        user_role_in_event: 'moderator',
+        can_user_moderate: true,
+        can_user_access: true,
+        is_created_by_user: false,
+        is_public: true
       };      // Mock questions data with rich metadata
       const mockQuestions: ExtendedQuestion[] = [
         {

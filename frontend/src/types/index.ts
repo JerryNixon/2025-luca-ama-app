@@ -21,6 +21,10 @@ export interface User {
   name: string;                  // Display name shown in the UI
   role: UserRole;                // Their permission level (moderator/presenter/user)
   isAnonymous?: boolean;         // Optional: if this user chose to be anonymous
+  
+  // New fields for Microsoft Entra ID and admin system
+  microsoft_id?: string;         // Optional: Microsoft Entra ID identifier
+  is_admin?: boolean;            // Whether this user is a system admin
 }
 
 // ==============================================================================
@@ -37,10 +41,18 @@ export interface Event {
   moderators: any[];             // Array of user objects who can moderate this event
   participants: any[];           // Array of user objects who have joined this event
   share_link?: string;           // Optional: shareable link for others to join
+  invite_link?: string;          // Optional: invite link for private events
   is_active: boolean;            // Whether the event is currently active
+  is_public?: boolean;           // Whether the event is public or private
   created_at: Date;              // When this event was created
   updated_at: Date;              // When this event was last modified
   question_count?: number;       // Number of questions for this event
+  
+  // New permission fields from dynamic permission system
+  user_role_in_event?: 'creator' | 'moderator' | 'participant' | 'visitor' | 'no_access';
+  can_user_moderate?: boolean;   // Whether current user can moderate this event
+  can_user_access?: boolean;     // Whether current user can access this event
+  is_created_by_user?: boolean;  // Whether current user created this event
 }
 
 // ==============================================================================
@@ -141,6 +153,9 @@ export interface AuthContextType {
   user: User | null;
   login: (credentials: LoginForm) => Promise<void>;
   logout: () => void;
+  microsoftLogin: (code: string) => Promise<void>;
+  getMicrosoftOAuthUrl: () => Promise<string>;
+  checkUserExists: (email: string) => Promise<boolean>;
   isLoading: boolean;
   isAuthenticated: boolean;
 }

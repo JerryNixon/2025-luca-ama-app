@@ -11,11 +11,17 @@ urlpatterns = [
     path('auth/login/', views.login_view, name='login'),
     path('auth/logout/', views.logout_view, name='logout'),
     path('auth/me/', views.me_view, name='me'),
+    path('auth/check-user/', views.check_user_exists, name='check-user-exists'),
+    
+    # Microsoft OAuth Authentication
+    path('auth/microsoft/', views.microsoft_oauth_login, name='microsoft-oauth-login'),
+    path('auth/microsoft/url/', views.microsoft_oauth_url, name='microsoft-oauth-url'),
     
     # Events
     path('events/', views.EventListCreateView.as_view(), name='event-list-create'),
     path('events/<uuid:pk>/', views.EventDetailView.as_view(), name='event-detail'),
     path('events/join/<str:share_link>/', views.join_event_view, name='join-event'),
+    path('events/<uuid:event_id>/moderators/', views.manage_event_moderators, name='manage-event-moderators'),
     
     # Questions
     path('events/<uuid:event_id>/questions/', views.QuestionListCreateView.as_view(), name='question-list-create'),
