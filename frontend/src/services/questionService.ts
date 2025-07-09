@@ -107,7 +107,7 @@ export const questionService = {
    * @throws Error if question doesn't exist or user lacks permissions
    */
   async updateQuestion(questionId: string, questionData: Partial<Question>): Promise<Question> {
-    const response = await apiClient.put<Question>(`/questions/${questionId}/`, questionData);
+    const response = await apiClient.patch<Question>(`/questions/${questionId}/`, questionData);
     return response.data;
   },
 
