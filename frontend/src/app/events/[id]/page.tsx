@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
 import { Event, Question } from '../../../types';
+import { eventService } from '../../../services/eventService';
+import { questionService } from '../../../services/questionService';
 import { FiStar, FiArrowUp, FiCheck, FiEye, FiTrash2, FiPlus, FiMinus, FiFilter } from 'react-icons/fi';
 import { EventHeaderSkeleton, QuestionCardSkeleton } from '../../../components/ui/LoadingSkeleton';
 
@@ -57,6 +59,7 @@ export default function EventDetailsPage() {
     // Track processing state to prevent duplicate calls
   const [processingActions, setProcessingActions] = useState<Set<string>>(new Set());
   const lastActionRef = useRef<{ action: string; timestamp: number } | null>(null);
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize moderator note texts when questions load
   useEffect(() => {
@@ -73,7 +76,31 @@ export default function EventDetailsPage() {
   const userRole = event?.user_role_in_event || 'no_access';
   const canModerate = event?.can_user_moderate || false;
   const canAccess = event?.can_user_access || false;
-  const isCreator = event?.is_created_by_user || false;/**
+  const isCreator = event?.is_created_by_user || false;
+
+  /**
+   * Manual refresh function for questions
+   */
+  const refreshQuestions = useCallback(async () => {
+    try {
+      const questionsData = await questionService.getQuestions(eventId);
+      
+      // Convert to ExtendedQuestion format
+      const extendedQuestions: ExtendedQuestion[] = questionsData.map(q => ({
+        ...q,
+        isOnStage: q.is_staged,
+        moderatorNote: q.presenter_notes || '',
+        relatedQuestions: [],
+        answer: '',
+        answeredBy: '',
+        answeredAt: undefined
+      }));
+      
+      setQuestions(extendedQuestions);
+    } catch (err: any) {
+      console.error('Questions loading error:', err);
+    }
+  }, [eventId]);/**
    * Load event data and questions
    */
   useEffect(() => {
@@ -90,162 +117,96 @@ export default function EventDetailsPage() {
   useEffect(() => {
     if (!event || loading) return;
     
+    console.log('Event loaded, checking permissions:', {
+      event: event.name,
+      userRole,
+      canModerate,
+      canAccess,
+      user_role_in_event: event.user_role_in_event,
+      can_user_moderate: event.can_user_moderate,
+      user_permissions: event.user_permissions
+    });
+    
     // Check if user can access this event
     if (!canAccess) {
+      console.log('User cannot access event, redirecting to events list');
       router.push('/events');
       return;
     }
     
     // Route users to the user-specific view if they can't moderate
     if (!canModerate && userRole === 'participant') {
+      console.log('User is participant without moderation rights, redirecting to user view');
       router.push(`/events/${eventId}/user`);
       return;
     }
+    
+    console.log('User has moderation rights or is not a participant, staying on main event page');
   }, [event, loading, canAccess, canModerate, userRole, eventId, router]);
+
+  // Set up periodic polling for questions in moderator view
+  useEffect(() => {
+    if (!event || !canModerate) return;
+    
+    // Set up polling every 30 seconds to check for new questions
+    refreshIntervalRef.current = setInterval(() => {
+      refreshQuestions();
+    }, 30000);
+    
+    // Cleanup interval on unmount
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+    };
+  }, [event, canModerate, refreshQuestions]);
   /**
    * Filter questions based on active tab
    */
 
   /**
-   * Simulates loading event and question data
+   * Load event and question data from API
    */
   const loadEventData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Fetch event data from the API
+      const eventData = await eventService.getEvent(eventId);
+      setEvent(eventData);
 
-      // Mock event data with correct property names and new permission fields
-      const mockEvent: Event = {
-        id: eventId,
-        name: 'Microsoft Fabric Developer Q&A Session',
-        open_date: new Date('2024-01-15T10:00:00'),
-        close_date: new Date('2024-01-15T12:00:00'),
-        created_by: { id: '1', email: 'presenter@microsoft.com', name: 'Presenter', role: 'presenter' },
-        moderators: [{ id: '1', email: 'moderator@microsoft.com', name: 'Moderator', role: 'moderator' }],
-        participants: [
-          { id: '1', email: 'demo@microsoft.com', name: 'Demo User', role: 'user' },
-          { id: '2', email: 'presenter@microsoft.com', name: 'Presenter', role: 'presenter' }
-        ],
-        share_link: `https://ama.microsoft.com/events/${eventId}`,
-        is_active: true,
-        created_at: new Date('2024-01-10T09:00:00'),
-        updated_at: new Date('2024-01-15T10:30:00'),
-        question_count: 3,
-        // New permission fields - simulate as if current user is a moderator
-        user_role_in_event: 'moderator',
-        can_user_moderate: true,
-        can_user_access: true,
-        is_created_by_user: false,
-        is_public: true
-      };      // Mock questions data with rich metadata
-      const mockQuestions: ExtendedQuestion[] = [
-        {
-          id: '1',
-          eventId: eventId,
-          text: 'Hi, I was wondering if developers had any feedback about using fabric, and how they were integrating it? I think it is a market we should try to aggressively expand in.',
-          author: {
-            id: '1',
-            email: 'demo@microsoft.com',
-            name: 'Anonymous User',
-            role: 'user'
-          },
-          isAnonymous: true,
-          upvotes: 10,
-          hasUserUpvoted: false,
-          isAnswered: false,
-          isStarred: true,
-          isStaged: false,
-          isOnStage: true,
-          presenterNotes: 'talk about how we are running a pilot test with one of our interns to see how it feels to use fabric to develope an end-to-end application',
-          tags: ['fabric', 'development', 'integration'],
-          createdAt: new Date('2024-01-15T10:15:00'),
-          updatedAt: new Date('2024-01-15T10:30:00'),
-          moderatorNote: 'talk about how we are running a pilot test with one of our interns to see how it feels to use fabric to develope an end-to-end application',
-          relatedQuestions: [
-            'What kind of feedback have developers shared about their experience with Fabric so far?',
-            'How are development teams currently integrating Fabric into their workflows or tech stacks?',
-            'What opportunities exist for expanding our presence in the Fabric ecosystem or market?'
-          ]
-        },
-        {
-          id: '2',
-          eventId: eventId,
-          text: 'What are the main performance benefits when using Fabric for large-scale data processing?',
-          author: {
-            id: '2',
-            email: 'user2@microsoft.com',
-            name: 'Sarah Chen',
-            role: 'user'
-          },
-          isAnonymous: false,
-          upvotes: 8,
-          hasUserUpvoted: true,
-          isAnswered: true,
-          isStarred: false,
-          isStaged: false,
-          isOnStage: false,
-          tags: ['fabric', 'performance', 'data-processing'],
-          answer: 'Fabric provides significant performance improvements through its unified compute engine and optimized data lake architecture.',
-          answeredBy: 'presenter@microsoft.com',
-          answeredAt: new Date('2024-01-15T10:45:00'),
-          createdAt: new Date('2024-01-15T10:20:00'),
-          updatedAt: new Date('2024-01-15T10:45:00')
-        },
-        {
-          id: '3',
-          eventId: eventId,
-          text: 'Can you explain how Fabric handles data governance and compliance requirements?',
-          author: {
-            id: '3',
-            email: 'user3@microsoft.com',
-            name: 'Mike Rodriguez',
-            role: 'user'
-          },
-          isAnonymous: false,
-          upvotes: 6,
-          hasUserUpvoted: false,
-          isAnswered: false,
-          isStarred: true,
-          isStaged: false,
-          isOnStage: false,
-          tags: ['fabric', 'governance', 'compliance'],
-          createdAt: new Date('2024-01-15T10:25:00'),
-          updatedAt: new Date('2024-01-15T10:25:00'),
-          moderatorNote: 'Important compliance question - prepare detailed response'
-        },
-        {
-          id: '4',
-          eventId: eventId,
-          text: 'What are the cost implications of migrating from Azure Synapse to Fabric?',
-          author: {
-            id: '4',
-            email: 'user4@microsoft.com',
-            name: 'Lisa Park',
-            role: 'user'
-          },
-          isAnonymous: false,
-          upvotes: 12,
-          hasUserUpvoted: false,
-          isAnswered: false,
-          isStarred: false,
-          isStaged: false,
-          isOnStage: false,
-          tags: ['fabric', 'migration', 'cost'],
-          createdAt: new Date('2024-01-15T10:30:00'),
-          updatedAt: new Date('2024-01-15T10:30:00')
-        }
-      ];
-
-      setEvent(mockEvent);
-      setQuestions(mockQuestions);
-    } catch (err) {
-      setError('Failed to load event data. Please try again.');
+      // Load questions for this event
+      await loadQuestions();
+    } catch (err: any) {
+      setError(err.message || 'Failed to load event data. Please try again.');
       console.error('Event loading error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * Load questions separately for refresh capability
+   */
+  const loadQuestions = async () => {
+    try {
+      const questionsData = await questionService.getQuestions(eventId);
+      
+      // Convert to ExtendedQuestion format
+      const extendedQuestions: ExtendedQuestion[] = questionsData.map(q => ({
+        ...q,
+        isOnStage: q.is_staged,
+        moderatorNote: q.presenter_notes || '',
+        relatedQuestions: [],
+        answer: '',
+        answeredBy: '',
+        answeredAt: undefined
+      }));
+      
+      setQuestions(extendedQuestions);
+    } catch (err: any) {
+      console.error('Questions loading error:', err);
     }
   };
   /**
@@ -258,10 +219,10 @@ export default function EventDetailsPage() {
     // Apply tab filter
     switch (activeFilter) {
       case 'answered':
-        filtered = filtered.filter(q => q.isAnswered);
+        filtered = filtered.filter(q => q.is_answered);
         break;
       case 'starred':
-        filtered = filtered.filter(q => q.isStarred);
+        filtered = filtered.filter(q => q.is_starred);
         break;
       case 'stage':
         filtered = filtered.filter(q => q.isOnStage);
@@ -282,7 +243,7 @@ export default function EventDetailsPage() {
       if (b.upvotes !== a.upvotes) {
         return b.upvotes - a.upvotes;
       }
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
     return filtered;
@@ -290,7 +251,7 @@ export default function EventDetailsPage() {
    * Handle question voting with proper vote limitation
    * Users can only vote once per question (toggle vote on/off)
    */
-  const handleVote = useCallback((questionId: string) => {
+  const handleVote = useCallback(async (questionId: string) => {
     const actionKey = `vote-${questionId}`;
     const now = Date.now();
     
@@ -304,23 +265,31 @@ export default function EventDetailsPage() {
     lastActionRef.current = { action: actionKey, timestamp: now };
     console.log('handleVote called for question:', questionId);
     
-    setQuestions(prev => prev.map(q => {
-      if (q.id === questionId) {
-        const hasVoted = q.hasUserUpvoted;
-        const newVoteCount = hasVoted ? q.upvotes - 1 : q.upvotes + 1;
-        
-        return {
-          ...q,
-          upvotes: newVoteCount,
-          hasUserUpvoted: !hasVoted
-        };
-      }
-      return q;
-    }));
+    try {
+      // Call API to toggle vote
+      await questionService.upvoteQuestion(questionId);
+      
+      // Update local state after successful API call
+      setQuestions(prev => prev.map(q => {
+        if (q.id === questionId) {
+          const hasVoted = q.has_user_upvoted;
+          const newVoteCount = hasVoted ? q.upvotes - 1 : q.upvotes + 1;
+          
+          return {
+            ...q,
+            upvotes: newVoteCount,
+            has_user_upvoted: !hasVoted
+          };
+        }
+        return q;
+      }));
+    } catch (error) {
+      console.error('Failed to vote on question:', error);
+    }
   }, []);  /**
    * Handle question starring (moderator/presenter only)
    */
-  const handleStar = useCallback((questionId: string) => {
+  const handleStar = useCallback(async (questionId: string) => {
     if (!canModerate) return;
     
     const actionKey = `star-${questionId}`;
@@ -336,57 +305,96 @@ export default function EventDetailsPage() {
     lastActionRef.current = { action: actionKey, timestamp: now };
     console.log('handleStar called for question:', questionId);
     
-    setQuestions(prev => prev.map(q => {
-      if (q.id === questionId) {
-        const newStarred = !q.isStarred;
-        
-        return { ...q, isStarred: newStarred };
-      }
-      return q;
-    }));
-  }, [canModerate]);/**
+    try {
+      // Get current state to determine new starred status
+      const currentQuestion = questions.find(q => q.id === questionId);
+      if (!currentQuestion) return;
+      
+      const newStarred = !currentQuestion.is_starred;
+      
+      // Call API to update starred status
+      await questionService.updateQuestion(questionId, {
+        is_starred: newStarred
+      });
+      
+      // Update local state after successful API call
+      setQuestions(prev => prev.map(q => {
+        if (q.id === questionId) {
+          return { ...q, is_starred: newStarred };
+        }
+        return q;
+      }));
+    } catch (error) {
+      console.error('Failed to star/unstar question:', error);
+    }
+  }, [canModerate, questions]);  /**
    * Handle staging question (moderator/presenter only)
    * Only one question can be staged at a time
    */
-  const handleStage = useCallback((questionId: string) => {
+  const handleStage = useCallback(async (questionId: string) => {
     if (!canModerate) return;
+    
+    try {
+      // Get current state to determine new staged status
+      const currentQuestion = questions.find(q => q.id === questionId);
+      if (!currentQuestion) return;
+      
+      const newStaged = !currentQuestion.isOnStage;
+      
+      // Call API to update staged status
+      await questionService.updateQuestion(questionId, {
+        is_staged: newStaged
+      });
+      
+      // Update local state after successful API call
       setQuestions(prev => prev.map(q => {
-      if (q.id === questionId) {
-        const newStaged = !q.isOnStage;
-        
-        // Toggle the clicked question's stage status
-        return { ...q, isOnStage: newStaged };
-      } else {
-        // If we're staging a new question, unstage all others
-        // If we're unstaging the current question, leave others as they are
-        const clickedQuestion = prev.find(question => question.id === questionId);
-        if (clickedQuestion && !clickedQuestion.isOnStage) {
-          // We're staging a new question, so unstage this one
+        if (q.id === questionId) {
+          // Toggle the clicked question's stage status
+          return { ...q, isOnStage: newStaged };
+        } else if (newStaged) {
+          // If we're staging a new question, unstage all others
           return { ...q, isOnStage: false };
         }
-        // We're unstaging, so leave this question's status unchanged
+        // If we're unstaging, leave other questions unchanged
         return q;
-      }
-    }));
-  }, [canModerate]);/**
+      }));
+    } catch (error) {
+      console.error('Failed to stage/unstage question:', error);
+    }
+  }, [canModerate, questions]);  /**
    * Handle marking question as answered (moderator/presenter only)
    */
-  const handleAnswer = useCallback((questionId: string) => {
+  const handleAnswer = useCallback(async (questionId: string) => {
     if (!canModerate) return;
+    
+    try {
+      // Get current state to determine new answered status
+      const currentQuestion = questions.find(q => q.id === questionId);
+      if (!currentQuestion) return;
+      
+      const newAnswered = !currentQuestion.is_answered;
+      
+      // Call API to update answered status
+      await questionService.updateQuestion(questionId, {
+        is_answered: newAnswered
+      });
+      
+      // Update local state after successful API call
       setQuestions(prev => prev.map(q => {
-      if (q.id === questionId) {
-        const newAnswered = !q.isAnswered;
-        
-        return { 
-          ...q, 
-          isAnswered: newAnswered,
-          answeredBy: newAnswered ? user?.email : undefined,
-          answeredAt: newAnswered ? new Date() : undefined
-        };
-      }
-      return q;
-    }));
-  }, [canModerate, user?.email]);
+        if (q.id === questionId) {
+          return { 
+            ...q, 
+            is_answered: newAnswered,
+            answeredBy: newAnswered ? user?.email : undefined,
+            answeredAt: newAnswered ? new Date() : undefined
+          };
+        }
+        return q;
+      }));
+    } catch (error) {
+      console.error('Failed to mark question as answered/unanswered:', error);
+    }
+  }, [canModerate, user?.email, questions]);
 
   /**
    * Toggle the expanded state of related questions for a specific question
@@ -436,17 +444,30 @@ export default function EventDetailsPage() {
   };  /**
    * Save a moderator note
    */
-  const saveModeratorNote = (questionId: string) => {
+  const saveModeratorNote = async (questionId: string) => {
     if (!canModerate) return;
     
     const noteText = moderatorNoteTexts[questionId]?.trim() || '';
     
-    // Update the question with the new note
-    setQuestions(prev => prev.map(q => 
-      q.id === questionId 
-        ? { ...q, moderatorNote: noteText || undefined }
-        : q
-    ));
+    try {
+      // Call API to save the note to the backend
+      await questionService.updateQuestion(questionId, {
+        presenter_notes: noteText || undefined
+      });
+      
+      // Update local state only after successful API call
+      setQuestions(prev => prev.map(q => 
+        q.id === questionId 
+          ? { ...q, moderatorNote: noteText || undefined }
+          : q
+      ));
+      
+      console.log('Moderator note saved successfully');
+    } catch (error) {
+      console.error('Failed to save moderator note:', error);
+      alert('Failed to save note. Please try again.');
+      return; // Don't update UI state if save failed
+    }
     
     // Stop editing
     setEditingModeratorNotes(prev => {
@@ -555,16 +576,28 @@ export default function EventDetailsPage() {
               </p>
             </div>
             {canModerate && (
-              <button
-                onClick={() => setShowModeratorsOnly(!showModeratorsOnly)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  showModeratorsOnly
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                {showModeratorsOnly ? 'Show All Questions' : 'Moderator View Only'}
-              </button>
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={refreshQuestions}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                  title="Refresh questions"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh
+                </button>
+                <button
+                  onClick={() => setShowModeratorsOnly(!showModeratorsOnly)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    showModeratorsOnly
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  {showModeratorsOnly ? 'Show All Questions' : 'Moderator View Only'}
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -576,8 +609,8 @@ export default function EventDetailsPage() {
           <div className="flex space-x-8">
             {[
               { key: 'all', label: 'All Questions', count: questions.length },
-              { key: 'answered', label: 'Answered', count: questions.filter(q => q.isAnswered).length },
-              { key: 'starred', label: 'Starred', count: questions.filter(q => q.isStarred).length },
+              { key: 'answered', label: 'Answered', count: questions.filter(q => q.is_answered).length },
+              { key: 'starred', label: 'Starred', count: questions.filter(q => q.is_starred).length },
               { key: 'stage', label: 'On Stage', count: questions.filter(q => q.isOnStage).length }
             ].map((tab) => (
               <button
@@ -662,11 +695,11 @@ export default function EventDetailsPage() {
                           handleVote(question.id);
                         }}
                         className={`flex flex-col items-center p-3 rounded-lg transition-colors group ${
-                          question.hasUserUpvoted
+                          question.has_user_upvoted
                             ? 'bg-primary-100 text-primary-600'
                             : 'bg-gray-50 hover:bg-gray-100 text-gray-600'
                         }`}
-                        title={question.hasUserUpvoted ? "Remove your vote" : "Vote for this question"}
+                        title={question.has_user_upvoted ? "Remove your vote" : "Vote for this question"}
                       >
                         <FiArrowUp className="w-5 h-5" />
                         <span className="font-semibold text-lg">{question.upvotes}</span>
@@ -680,9 +713,9 @@ export default function EventDetailsPage() {
                       <div className="mb-4">
                         <p className="text-gray-900 text-base leading-relaxed">{question.text}</p>
                         <div className="flex items-center mt-2 text-sm text-gray-500">
-                          <span>by {question.isAnonymous ? 'Anonymous' : question.author.name}</span>
+                          <span>by {question.is_anonymous ? 'Anonymous' : question.author.name}</span>
                           <span className="mx-2">•</span>
-                          <span>{question.createdAt.toLocaleDateString()}</span>
+                          <span>{new Date(question.created_at).toLocaleDateString()}</span>
                           {question.tags.length > 0 && (
                             <>
                               <span className="mx-2">•</span>
@@ -795,7 +828,7 @@ export default function EventDetailsPage() {
                           </div>
                         </div>
                       )}                      {/* Answer Display */}
-                      {question.isAnswered && question.answer && (
+                      {question.is_answered && question.answer && (
                         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                           <div className="flex items-start">
                             <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
@@ -824,13 +857,13 @@ export default function EventDetailsPage() {
                             handleStar(question.id);
                           }}
                           className={`p-2 rounded-lg transition-colors tooltip ${
-                            question.isStarred
+                            question.is_starred
                               ? 'bg-yellow-100 text-yellow-600 border border-yellow-200'
                               : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200'
                           }`}
-                          title={question.isStarred ? 'Remove from starred' : 'Add to starred'}
+                          title={question.is_starred ? 'Remove from starred' : 'Add to starred'}
                         >
-                          <FiStar className={`w-4 h-4 ${question.isStarred ? 'fill-current' : ''}`} />
+                          <FiStar className={`w-4 h-4 ${question.is_starred ? 'fill-current' : ''}`} />
                         </button>
                         
                         <button
@@ -848,11 +881,11 @@ export default function EventDetailsPage() {
                         <button
                           onClick={() => handleAnswer(question.id)}
                           className={`p-2 rounded-lg transition-colors ${
-                            question.isAnswered
+                            question.is_answered
                               ? 'bg-green-100 text-green-600 border border-green-200'
                               : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200'
                           }`}
-                          title={question.isAnswered ? 'Mark as unanswered' : 'Mark as answered'}
+                          title={question.is_answered ? 'Mark as unanswered' : 'Mark as answered'}
                         >
                           <FiCheck className="w-4 h-4" />
                         </button>

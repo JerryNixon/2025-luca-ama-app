@@ -171,6 +171,14 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3000',  # Alternative localhost
     'http://localhost:3001',  # Alternative port
     'http://127.0.0.1:3001',  # Alternative port
+    'http://localhost:3002',  # Alternative port
+    'http://127.0.0.1:3002',  # Alternative port
+    'http://localhost:3003',  # Alternative port
+    'http://127.0.0.1:3003',  # Alternative port
+    'http://localhost:3004',  # Alternative port
+    'http://127.0.0.1:3004',  # Alternative port
+    'http://localhost:3005',  # Alternative port
+    'http://127.0.0.1:3005',  # Alternative port
 ]
 
 CORS_ALLOW_CREDENTIALS = True

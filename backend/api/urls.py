@@ -21,6 +21,7 @@ urlpatterns = [
     path('events/', views.EventListCreateView.as_view(), name='event-list-create'),
     path('events/<uuid:pk>/', views.EventDetailView.as_view(), name='event-detail'),
     path('events/join/<str:share_link>/', views.join_event_view, name='join-event'),
+    path('events/invite/<str:invite_link>/', views.join_event_by_invite, name='join-event-by-invite'),
     path('events/<uuid:event_id>/moderators/', views.manage_event_moderators, name='manage-event-moderators'),
     
     # Questions

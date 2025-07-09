@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
-import { Event, Question } from '../../../../types';
+import { Event, Question, CreateQuestionForm } from '../../../../types';
 import { FiArrowUp, FiSend, FiUser, FiEyeOff } from 'react-icons/fi';
 import QuestionCard from '../../../../components/questions/QuestionCard';
+import { eventService } from '../../../../services/eventService';
+import { questionService } from '../../../../services/questionService';
 
 /**
  * User Event View Page Component
@@ -65,14 +67,9 @@ export default function UserEventViewPage() {
       return;
     }
 
-    // Only users should access this view
-    if (user?.role !== 'user') {
-      router.push(`/events/${eventId}`);
-      return;
-    }
-
+    // Load event data regardless of role - let the backend handle permissions
     loadEventData();
-  }, [eventId, isAuthenticated, user?.role, router]);
+  }, [eventId, isAuthenticated, router]);
 
   /**
    * Filter questions based on active tab
@@ -89,213 +86,32 @@ export default function UserEventViewPage() {
       setLoading(true);
       setError(null);
 
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 600));
+      console.log('Loading event data for eventId:', eventId);
+      
+      // Load event data from API
+      const eventData = await eventService.getEvent(eventId);
+      console.log('Event data loaded:', eventData);
+      
+      // Load questions for this event
+      const questionsData = await questionService.getQuestions(eventId);
+      console.log('Questions data loaded:', questionsData);
+      
+      // Convert questions to UserQuestion format with hasVoted info
+      const userQuestions: UserQuestion[] = questionsData.map(q => ({
+        ...q,
+        hasVoted: q.has_user_upvoted || false
+      }));
 
-      // Mock event data
-      const mockEvent: Event = {
-        id: eventId,
-        name: 'Microsoft Fabric Developer Q&A Session',
-        openDate: new Date('2024-01-15T10:00:00'),
-        closeDate: new Date('2024-01-15T12:00:00'),
-        createdBy: 'presenter@microsoft.com',
-        moderators: ['moderator@microsoft.com'],
-        participants: ['demo@microsoft.com', 'presenter@microsoft.com'],
-        shareLink: `https://ama.microsoft.com/events/${eventId}`,
-        isActive: true,
-        createdAt: new Date('2024-01-10T09:00:00'),
-        updatedAt: new Date('2024-01-15T10:30:00')
-      };      // Mock questions data for user view (simplified)
-      const mockQuestions: UserQuestion[] = [
-        {
-          id: '1',
-          eventId: eventId,
-          text: 'Hi, I was wondering if developers had any feedback about using fabric, and how they were integrating it? I think it is a market we should try to aggressively expand in.',
-          author: {
-            id: '1',
-            email: 'demo@microsoft.com',
-            name: 'Anonymous User',
-            role: 'user'
-          },          isAnonymous: true,
-          upvotes: 10,
-          hasUserUpvoted: false,
-          isAnswered: false,
-          isStarred: false,
-          isStaged: true, // This question is currently being discussed
-          tags: ['fabric', 'development', 'integration'],
-          createdAt: new Date('2024-01-15T10:15:00'),
-          updatedAt: new Date('2024-01-15T10:30:00'),
-          hasVoted: false,
-          // Add similar/grouped questions to demonstrate the toggle functionality
-          groupedQuestions: [
-            {
-              id: '1a',
-              eventId: eventId,
-              text: 'What are the developer tools available for Fabric integration?',
-              author: {
-                id: '5',
-                email: 'dev1@microsoft.com',
-                name: 'Alex Thompson',
-                role: 'user'
-              },
-              isAnonymous: false,
-              upvotes: 5,
-              hasUserUpvoted: false,
-              isAnswered: false,
-              isStarred: false,
-              isStaged: false,
-              tags: ['fabric', 'tools', 'development'],
-              createdAt: new Date('2024-01-15T10:16:00'),
-              updatedAt: new Date('2024-01-15T10:16:00')
-            },
-            {
-              id: '1b',
-              eventId: eventId,
-              text: 'How do developers typically handle Fabric API rate limits?',
-              author: {
-                id: '6',
-                email: 'dev2@microsoft.com',
-                name: 'Anonymous',
-                role: 'user'
-              },
-              isAnonymous: true,
-              upvotes: 3,
-              hasUserUpvoted: true,
-              isAnswered: true,
-              isStarred: false,
-              isStaged: false,
-              tags: ['fabric', 'api', 'rate-limits'],
-              createdAt: new Date('2024-01-15T10:18:00'),
-              updatedAt: new Date('2024-01-15T10:35:00')
-            },
-            {
-              id: '1c',
-              eventId: eventId,
-              text: 'Are there any community resources or forums for Fabric developers?',
-              author: {
-                id: '7',
-                email: 'community@microsoft.com',
-                name: 'Jordan Kim',
-                role: 'user'
-              },
-              isAnonymous: false,
-              upvotes: 7,
-              hasUserUpvoted: false,
-              isAnswered: false,
-              isStarred: false,
-              isStaged: false,
-              tags: ['fabric', 'community', 'resources'],
-              createdAt: new Date('2024-01-15T10:22:00'),
-              updatedAt: new Date('2024-01-15T10:22:00')
-            }
-          ]
-        },
-        {
-          id: '2',
-          eventId: eventId,
-          text: 'What are the main performance benefits when using Fabric for large-scale data processing?',
-          author: {
-            id: '2',
-            email: 'user2@microsoft.com',
-            name: 'Sarah Chen',
-            role: 'user'
-          },          isAnonymous: false,
-          upvotes: 8,
-          hasUserUpvoted: true,          isAnswered: true,
-          isStarred: false,
-          isStaged: false, // Not currently on stage
-          tags: ['fabric', 'performance', 'data-processing'],
-          createdAt: new Date('2024-01-15T10:20:00'),
-          updatedAt: new Date('2024-01-15T10:45:00'),
-          hasVoted: true
-        },        {
-          id: '3',
-          eventId: eventId,
-          text: 'Can you explain how Fabric handles data governance and compliance requirements?',
-          author: {
-            id: '3',
-            email: 'user3@microsoft.com',
-            name: 'Mike Rodriguez',
-            role: 'user'
-          },          isAnonymous: false,
-          upvotes: 6,
-          hasUserUpvoted: false,          isAnswered: false,
-          isStarred: false,
-          isStaged: false, // Not currently on stage
-          tags: ['fabric', 'governance', 'compliance'],
-          createdAt: new Date('2024-01-15T10:25:00'),
-          updatedAt: new Date('2024-01-15T10:25:00'),
-          hasVoted: false,
-          // Add similar questions about governance and compliance
-          groupedQuestions: [
-            {
-              id: '3a',
-              eventId: eventId,
-              text: 'What are the GDPR compliance features in Fabric?',
-              author: {
-                id: '8',
-                email: 'legal@microsoft.com',
-                name: 'Anonymous',
-                role: 'user'
-              },
-              isAnonymous: true,
-              upvotes: 4,
-              hasUserUpvoted: false,
-              isAnswered: false,
-              isStarred: false,
-              isStaged: false,
-              tags: ['fabric', 'gdpr', 'compliance'],
-              createdAt: new Date('2024-01-15T10:26:00'),
-              updatedAt: new Date('2024-01-15T10:26:00')
-            },
-            {
-              id: '3b',
-              eventId: eventId,
-              text: 'How does Fabric handle data lineage and audit trails?',
-              author: {
-                id: '9',
-                email: 'audit@microsoft.com',
-                name: 'Patricia Wilson',
-                role: 'user'
-              },
-              isAnonymous: false,
-              upvotes: 8,
-              hasUserUpvoted: true,
-              isAnswered: false,
-              isStarred: false,
-              isStaged: false,
-              tags: ['fabric', 'lineage', 'audit'],
-              createdAt: new Date('2024-01-15T10:27:00'),
-              updatedAt: new Date('2024-01-15T10:27:00')
-            }
-          ]
-        },
-        {
-          id: '4',
-          eventId: eventId,
-          text: 'What are the cost implications of migrating from Azure Synapse to Fabric?',
-          author: {
-            id: '4',
-            email: 'user4@microsoft.com',
-            name: 'Lisa Park',
-            role: 'user'
-          },          isAnonymous: false,
-          upvotes: 12,
-          hasUserUpvoted: false,          isAnswered: false,
-          isStarred: false,
-          isStaged: false, // Not currently on stage
-          tags: ['fabric', 'migration', 'cost'],
-          createdAt: new Date('2024-01-15T10:30:00'),
-          updatedAt: new Date('2024-01-15T10:30:00'),
-          hasVoted: false
-        }
-      ];
-
-      setEvent(mockEvent);
-      setQuestions(mockQuestions);
+      setEvent(eventData);
+      setQuestions(userQuestions);
     } catch (err) {
-      setError('Failed to load event data. Please try again.');
       console.error('Event loading error:', err);
+      // More specific error messages
+      if (err instanceof Error) {
+        setError(`Failed to load event: ${err.message}`);
+      } else {
+        setError('Failed to load event data. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -310,7 +126,7 @@ export default function UserEventViewPage() {
     // Apply tab filter
     switch (activeFilter) {
       case 'answered':
-        filtered = filtered.filter(q => q.isAnswered);
+        filtered = filtered.filter(q => q.is_answered);
         break;
       case 'all':
       default:
@@ -323,7 +139,7 @@ export default function UserEventViewPage() {
       if (b.upvotes !== a.upvotes) {
         return b.upvotes - a.upvotes;
       }
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
     setFilteredQuestions(filtered);
@@ -332,18 +148,28 @@ export default function UserEventViewPage() {
   /**
    * Handle question voting
    */
-  const handleVote = (questionId: string) => {
-    setQuestions(prev => prev.map(q => {
-      if (q.id === questionId) {
-        const hasVoted = q.hasUserUpvoted;
-        return {
-          ...q,
-          upvotes: hasVoted ? q.upvotes - 1 : q.upvotes + 1,
-          hasUserUpvoted: !hasVoted
-        };
-      }
-      return q;
-    }));
+  const handleVote = async (questionId: string) => {
+    try {
+      // Call API to upvote/remove upvote
+      await questionService.upvoteQuestion(questionId);
+      
+      // Update local state
+      setQuestions(prev => prev.map(q => {
+        if (q.id === questionId) {
+          const hasVoted = q.has_user_upvoted;
+          return {
+            ...q,
+            upvotes: hasVoted ? q.upvotes - 1 : q.upvotes + 1,
+            has_user_upvoted: !hasVoted,
+            hasVoted: !hasVoted
+          };
+        }
+        return q;
+      }));
+    } catch (err) {
+      console.error('Error voting on question:', err);
+      // You could show a toast notification here
+    }
   };
 
   /**
@@ -361,34 +187,24 @@ export default function UserEventViewPage() {
       setSubmitting(true);
       setShowError(false);
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Create new question
-      const newQuestion: UserQuestion = {
-        id: Date.now().toString(),
-        eventId: eventId,
+      // Create question data
+      const questionData: CreateQuestionForm = {
         text: questionText.trim(),
-        author: {
-          id: user?.id || 'current-user',
-          email: user?.email || 'current@user.com',
-          name: isAnonymous ? 'Anonymous' : (user?.name || 'Current User'),
-          role: user?.role || 'user'
-        },
-        isAnonymous: isAnonymous,
-        upvotes: 0,
-        hasUserUpvoted: false,
-        isAnswered: false,
-        isStarred: false,
-        isStaged: false,
-        tags: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        is_anonymous: isAnonymous,
+        tags: []
+      };
+
+      // Submit question via API
+      const newQuestion = await questionService.createQuestion(eventId, questionData);
+      
+      // Convert to UserQuestion format and add to list
+      const userQuestion: UserQuestion = {
+        ...newQuestion,
         hasVoted: false
       };
 
       // Add to questions list
-      setQuestions(prev => [newQuestion, ...prev]);
+      setQuestions(prev => [userQuestion, ...prev]);
 
       // Reset form
       setQuestionText('');
@@ -416,12 +232,37 @@ export default function UserEventViewPage() {
   }
 
   // Error state
-  if (error || !event) {
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Error Loading Event</h1>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <p className="text-sm text-gray-500 mb-4">Event ID: {eventId}</p>
+          <button
+            onClick={() => router.push('/events')}
+            className="btn-primary mr-4"
+          >
+            Back to Events
+          </button>
+          <button
+            onClick={() => loadEventData()}
+            className="bg-gray-600 hover:bg-gray-700 text-white font-medium px-6 py-2 rounded-lg transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!event) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Event Not Found</h1>
-          <p className="text-gray-600 mb-4">{error || 'The event you\'re looking for doesn\'t exist.'}</p>
+          <p className="text-gray-600 mb-4">The event you're looking for doesn't exist.</p>
+          <p className="text-sm text-gray-500 mb-4">Event ID: {eventId}</p>
           <button
             onClick={() => router.push('/events')}
             className="btn-primary"
@@ -564,7 +405,7 @@ export default function UserEventViewPage() {
           <div className="flex border-b">
             {[
               { key: 'all', label: 'All Questions', count: questions.length },
-              { key: 'answered', label: 'Answered', count: questions.filter(q => q.isAnswered).length }
+              { key: 'answered', label: 'Answered', count: questions.filter(q => q.is_answered).length }
             ].map((tab) => (
               <button
                 key={tab.key}

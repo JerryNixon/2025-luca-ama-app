@@ -25,6 +25,8 @@ export interface User {
   // New fields for Microsoft Entra ID and admin system
   microsoft_id?: string;         // Optional: Microsoft Entra ID identifier
   is_admin?: boolean;            // Whether this user is a system admin
+  can_create_events?: boolean;   // Whether this user can create events
+  is_system_admin?: boolean;     // Whether this user is a system admin
 }
 
 // ==============================================================================
@@ -48,11 +50,21 @@ export interface Event {
   updated_at: Date;              // When this event was last modified
   question_count?: number;       // Number of questions for this event
   
-  // New permission fields from dynamic permission system
-  user_role_in_event?: 'creator' | 'moderator' | 'participant' | 'visitor' | 'no_access';
-  can_user_moderate?: boolean;   // Whether current user can moderate this event
-  can_user_access?: boolean;     // Whether current user can access this event
-  is_created_by_user?: boolean;  // Whether current user created this event
+  // New permission fields for role-based access
+  user_role_in_event: 'admin' | 'creator' | 'moderator' | 'participant' | 'no_access';
+  can_user_moderate: boolean;
+  can_user_access: boolean;
+  is_created_by_user: boolean;
+  user_permissions: {
+    can_view: boolean;
+    can_ask_questions: boolean;
+    can_vote: boolean;
+    can_moderate: boolean;
+    can_edit_event: boolean;
+    can_delete_event: boolean;
+    can_add_moderators: boolean;
+    view_type: 'no_access' | 'user' | 'moderator';
+  };
 }
 
 // ==============================================================================
@@ -61,23 +73,23 @@ export interface Event {
 
 // Question interface - represents a question asked during an AMA
 export interface Question {
-  id: string;                    // Unique identifier for the question
-  eventId: string;               // Which event this question belongs to
-  text: string;                  // The actual question content
-  author: User;                  // Who asked this question
-  isAnonymous: boolean;          // Whether the author chose to be anonymous
-  upvotes: number;               // How many people upvoted this question
-  hasUserUpvoted: boolean;       // Whether the current user has upvoted this
-  isAnswered: boolean;           // Whether this question has been answered
-  isStarred: boolean;            // Whether moderators marked this as important
-  isStaged: boolean;             // Whether this is currently being discussed
-  presenterNotes?: string;       // Optional: notes for moderators/presenters only
-  aiSummary?: string;            // Optional: AI-generated summary of the question
-  parentQuestionId?: string;     // Optional: if this is grouped under another question
-  groupedQuestions?: Question[]; // Optional: similar questions grouped under this one
-  tags: string[];                // Keywords/categories for this question
-  createdAt: Date;               // When this question was asked
-  updatedAt: Date;               // When this question was last modified
+  id: string;                      // Unique identifier for the question
+  event: string;                   // Which event this question belongs to
+  text: string;                    // The actual question content
+  author: User;                    // Who asked this question
+  is_anonymous: boolean;           // Whether the author chose to be anonymous
+  upvotes: number;                 // How many people upvoted this question
+  has_user_upvoted: boolean;       // Whether the current user has upvoted this
+  is_answered: boolean;            // Whether this question has been answered
+  is_starred: boolean;             // Whether moderators marked this as important
+  is_staged: boolean;              // Whether this is currently being discussed
+  presenter_notes?: string;        // Optional: notes for moderators/presenters only
+  ai_summary?: string;             // Optional: AI-generated summary of the question
+  parent_question?: string;        // Optional: if this is grouped under another question
+  grouped_questions?: Question[];  // Optional: similar questions grouped under this one
+  tags: string[];                  // Keywords/categories for this question
+  created_at: string | Date;       // When this question was asked
+  updated_at: string | Date;       // When this question was last modified
 }
 
 // ==============================================================================
@@ -133,13 +145,13 @@ export interface QuestionFilters {
 // Event creation form - data needed to create a new AMA event
 export interface CreateEventForm {
   name: string;                  // Event name (required)
-  openDate?: Date;               // Optional: when questions can start
-  closeDate?: Date;              // Optional: when event ends
+  open_date?: string;            // Optional: when questions can start (ISO string)
+  close_date?: string;           // Optional: when event ends (ISO string)
 }
 
 export interface CreateQuestionForm {
   text: string;
-  isAnonymous: boolean;
+  is_anonymous: boolean;
   tags?: string[];
 }
 

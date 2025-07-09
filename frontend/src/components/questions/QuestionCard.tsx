@@ -64,7 +64,7 @@ export default function QuestionCard({
   return (
     <div className={`card fade-in hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 ${
       // Special styling for staged questions - blue border and background with glow effect
-      question.isStaged ? 'ring-2 ring-blue-500 bg-blue-50 shadow-blue-500/20 shadow-lg' : ''
+      question.is_staged ? 'ring-2 ring-blue-500 bg-blue-50 shadow-blue-500/20 shadow-lg' : ''
     }`}>
       <div className="flex items-start justify-between">
         <div className="flex-1">
@@ -76,34 +76,42 @@ export default function QuestionCard({
               <FiUser className="w-4 h-4 text-gray-500" />
               <span className="text-sm text-gray-600">
                 {/* Show "Anonymous" if question is anonymous, otherwise show author name */}
-                {question.isAnonymous ? 'Anonymous' : question.author.name}
+                {question.is_anonymous ? 'Anonymous' : question.author.name}
               </span>
             </div>
             
             {/* Timestamp */}
             <div className="flex items-center gap-1 text-xs text-gray-500">
               <FiClock className="w-3 h-3" />
-              <span>{format(question.createdAt, 'MMM dd, HH:mm')}</span>
+              <span>
+                {(() => {
+                  try {
+                    return format(new Date(question.created_at), 'MMM dd, HH:mm');
+                  } catch (error) {
+                    return 'Invalid date';
+                  }
+                })()}
+              </span>
             </div>
             
             {/* Status Badges */}
             <div className="flex gap-1">
               {/* Answered Badge - Green background when question has been answered */}
-              {question.isAnswered && (
+              {question.is_answered && (
                 <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
                   Answered
                 </span>
               )}
               
               {/* Starred Badge - Yellow background for important questions */}
-              {question.isStarred && (
+              {question.is_starred && (
                 <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
                   ⭐ Starred
                 </span>
               )}
               
               {/* Staged Badge - Blue background for questions currently being presented */}
-              {question.isStaged && (
+              {question.is_staged && (
                 <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
                   🎭 On Stage
                 </span>
@@ -178,11 +186,11 @@ export default function QuestionCard({
                 <button
                   onClick={onStar}
                   className={`p-2 rounded-lg transition-colors ${
-                    question.isStarred
+                    question.is_starred
                       ? 'bg-yellow-100 text-yellow-700'    // Active - question is starred
                       : 'hover:bg-gray-100 text-gray-600'  // Inactive - can star
                   }`}
-                  title={question.isStarred ? "Remove star" : "Star question"}
+                  title={question.is_starred ? "Remove star" : "Star question"}
                 >
                   <FiStar className="w-4 h-4" />
                 </button>
@@ -191,11 +199,11 @@ export default function QuestionCard({
                 <button
                   onClick={onStage}
                   className={`p-2 rounded-lg transition-colors ${
-                    question.isStaged
+                    question.is_staged
                       ? 'bg-blue-100 text-blue-700'        // Active - question is on stage
                       : 'hover:bg-gray-100 text-gray-600'  // Inactive - can stage
                   }`}
-                  title={question.isStaged ? "Remove from stage" : "Put on stage"}
+                  title={question.is_staged ? "Remove from stage" : "Put on stage"}
                 >
                   🎭
                 </button>
@@ -204,11 +212,11 @@ export default function QuestionCard({
                 <button
                   onClick={onAnswer}
                   className={`p-2 rounded-lg transition-colors ${
-                    question.isAnswered
+                    question.is_answered
                       ? 'bg-green-100 text-green-700'      // Active - question is answered
                       : 'hover:bg-gray-100 text-gray-600'  // Inactive - can mark as answered
                   }`}
-                  title={question.isAnswered ? "Mark as unanswered" : "Mark as answered"}
+                  title={question.is_answered ? "Mark as unanswered" : "Mark as answered"}
                 >
                   ✓
                 </button>
@@ -217,7 +225,7 @@ export default function QuestionCard({
 
             {/* Owner Actions - Edit and delete options for question owners */}
             {/* Only shown to question owners and only for unanswered questions */}
-            {isOwner && !question.isAnswered && (
+            {isOwner && !question.is_answered && (
               <div className="relative">
                 <button
                   className="p-2 rounded-lg hover:bg-gray-100 text-gray-600"
@@ -261,7 +269,7 @@ function SimilarQuestionsSection({ question, isModeratorView, onUpvote }: Simila
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Don't render if no grouped questions
-  if (!question.groupedQuestions || question.groupedQuestions.length === 0) {
+  if (!question.grouped_questions || question.grouped_questions.length === 0) {
     return null;
   }
 
@@ -275,24 +283,24 @@ function SimilarQuestionsSection({ question, isModeratorView, onUpvote }: Simila
         <span className={`transition-transform duration-200 ${isExpanded ? 'rotate-45' : ''}`}>
           {isExpanded ? '−' : '+'}
         </span>
-        <span>{question.groupedQuestions.length} similar question{question.groupedQuestions.length > 1 ? 's' : ''}</span>
+        <span>{question.grouped_questions.length} similar question{question.grouped_questions.length > 1 ? 's' : ''}</span>
       </button>
 
       {/* Expanded Similar Questions */}
       {isExpanded && (
         <div className="mt-3 space-y-3 pl-4 border-l-2 border-gray-100">
-          {question.groupedQuestions.map((similarQuestion) => (
+          {question.grouped_questions.map((similarQuestion) => (
             <div key={similarQuestion.id} className="bg-gray-50 rounded-lg p-4">
               <div className="flex space-x-3">                {/* Vote Button for Similar Questions */}
                 <div className="flex flex-col items-center">
                   <button
                     onClick={() => onUpvote(similarQuestion.id)}
                     className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
-                      similarQuestion.hasUserUpvoted
+                      similarQuestion.has_user_upvoted
                         ? 'bg-primary-100 text-primary-600'
                         : 'bg-white hover:bg-gray-100 text-gray-600'
                     }`}
-                    title={similarQuestion.hasUserUpvoted ? "Remove your vote" : "Vote for this question"}
+                    title={similarQuestion.has_user_upvoted ? "Remove your vote" : "Vote for this question"}
                   >
                     <FiArrowUp className="w-4 h-4" />
                     <span className="font-medium text-sm">{similarQuestion.upvotes}</span>
@@ -308,7 +316,7 @@ function SimilarQuestionsSection({ question, isModeratorView, onUpvote }: Simila
                   
                   <div className="flex items-center text-xs text-gray-500 space-x-2">
                     <div className="flex items-center">
-                      {similarQuestion.isAnonymous ? (
+                      {similarQuestion.is_anonymous ? (
                         <>
                           <FiEyeOff className="w-3 h-3 mr-1" />
                           <span>Anonymous</span>
@@ -321,10 +329,10 @@ function SimilarQuestionsSection({ question, isModeratorView, onUpvote }: Simila
                       )}
                     </div>
                     <span>•</span>
-                    <span>{similarQuestion.createdAt.toLocaleDateString()}</span>
+                    <span>{new Date(similarQuestion.created_at).toLocaleDateString()}</span>
                     
                     {/* Status Badge for Similar Questions */}
-                    {similarQuestion.isAnswered && (
+                    {similarQuestion.is_answered && (
                       <>
                         <span>•</span>
                         <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">
@@ -333,7 +341,7 @@ function SimilarQuestionsSection({ question, isModeratorView, onUpvote }: Simila
                       </>
                     )}
                     
-                    {isModeratorView && similarQuestion.isStarred && (
+                    {isModeratorView && similarQuestion.is_starred && (
                       <>
                         <span>•</span>
                         <span className="text-yellow-600" title="Starred">⭐</span>

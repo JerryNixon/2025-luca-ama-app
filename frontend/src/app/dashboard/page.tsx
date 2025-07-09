@@ -114,8 +114,8 @@ export default function DashboardPage() {
                 </div>
               </Link>
 
-              {/* Create Event Card - Only visible to moderators */}
-              {user?.role === 'moderator' && (
+              {/* Create Event Card - Available to all users who can create events */}
+              {user?.can_create_events && (
                 <Link href="/events/create" className="group">
                   <div className="card hover:shadow-lg transition-shadow duration-200 text-left">
                     <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">

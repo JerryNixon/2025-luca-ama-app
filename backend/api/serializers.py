@@ -61,6 +61,7 @@ class EventSerializer(serializers.ModelSerializer):
     can_user_moderate = serializers.SerializerMethodField()
     can_user_access = serializers.SerializerMethodField()
     is_created_by_user = serializers.SerializerMethodField()
+    user_permissions = serializers.SerializerMethodField()
     
     # Fields for moderator assignment
     moderator_emails = serializers.ListField(
@@ -76,7 +77,8 @@ class EventSerializer(serializers.ModelSerializer):
                  'moderators', 'participants', 'share_link', 'is_active',
                  'created_at', 'updated_at', 'question_count', 'is_public',
                  'invite_link', 'user_role_in_event', 'can_user_moderate',
-                 'can_user_access', 'is_created_by_user', 'moderator_emails']
+                 'can_user_access', 'is_created_by_user', 'user_permissions',
+                 'moderator_emails']
         read_only_fields = ['id', 'created_at', 'updated_at', 'share_link', 'invite_link']
     
     def get_question_count(self, obj):
@@ -109,6 +111,22 @@ class EventSerializer(serializers.ModelSerializer):
         if request and request.user.is_authenticated:
             return obj.created_by == request.user
         return False
+    
+    def get_user_permissions(self, obj):
+        """Get detailed permissions for current user"""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.get_user_permissions(request.user)
+        return {
+            'can_view': False,
+            'can_ask_questions': False,
+            'can_vote': False,
+            'can_moderate': False,
+            'can_edit_event': False,
+            'can_delete_event': False,
+            'can_add_moderators': False,
+            'view_type': 'no_access'
+        }
     
     def create(self, validated_data):
         """Override create to handle moderator assignment"""
@@ -181,7 +199,8 @@ class QuestionSerializer(serializers.ModelSerializer):
                  'has_user_upvoted', 'is_answered', 'is_starred', 'is_staged',
                  'presenter_notes', 'ai_summary', 'parent_question', 
                  'grouped_questions', 'tags', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'upvotes', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'event', 'author', 'upvotes', 'has_user_upvoted', 
+                           'grouped_questions', 'created_at', 'updated_at']
     
     def get_upvotes(self, obj):
         return obj.vote_records.count()

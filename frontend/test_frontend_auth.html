@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Auth Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 5px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <h1>Frontend Authentication Test</h1>
+    <div id="results"></div>
+    <button onclick="runTest()">Run Test</button>
+
+    <script>
+        const API_BASE_URL = 'http://127.0.0.1:8000/api';
+        const resultsDiv = document.getElementById('results');
+
+        function addResult(message, isSuccess = true) {
+            const div = document.createElement('div');
+            div.className = `result ${isSuccess ? 'success' : 'error'}`;
+            div.textContent = message;
+            resultsDiv.appendChild(div);
+        }
+
+        async function makeRequest(endpoint, method = 'GET', data = null) {
+            const url = `${API_BASE_URL}${endpoint}`;
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                mode: 'cors',
+                credentials: 'omit',
+            };
+
+            if (data) {
+                options.body = JSON.stringify(data);
+            }
+
+            try {
+                const response = await fetch(url, options);
+                const result = await response.json();
+                return { status: response.status, data: result };
+            } catch (error) {
+                console.error('Request failed:', error);
+                return { status: 0, error: error.message };
+            }
+        }
+
+        async function runTest() {
+            resultsDiv.innerHTML = '';
+            addResult('Starting frontend authentication test...');
+
+            // Test 1: Check user exists
+            addResult('1. Testing check-user endpoint...');
+            const checkUserResult = await makeRequest('/auth/check-user/', 'POST', { email: 'jerry.nixon@microsoft.com' });
+            addResult(`Status: ${checkUserResult.status}`);
+            addResult(`Response: ${JSON.stringify(checkUserResult.data)}`);
+
+            if (checkUserResult.status === 200 && checkUserResult.data.data.exists) {
+                addResult('✅ User exists check passed', true);
+            } else {
+                addResult('❌ User exists check failed', false);
+                return;
+            }
+
+            // Test 2: Login
+            addResult('2. Testing login endpoint...');
+            const loginResult = await makeRequest('/auth/login/', 'POST', { 
+                email: 'jerry.nixon@microsoft.com', 
+                password: 'test123' 
+            });
+            addResult(`Status: ${loginResult.status}`);
+            addResult(`Response: ${JSON.stringify(loginResult.data)}`);
+
+            if (loginResult.status === 200 && loginResult.data.success) {
+                addResult('✅ Login successful', true);
+                
+                // Test 3: Verify token
+                addResult('3. Testing token validity...');
+                const token = loginResult.data.data.token;
+                const meOptions = {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    mode: 'cors',
+                    credentials: 'omit',
+                };
+
+                try {
+                    const meResponse = await fetch(`${API_BASE_URL}/auth/me/`, meOptions);
+                    const meResult = await meResponse.json();
+                    addResult(`Status: ${meResponse.status}`);
+                    addResult(`Response: ${JSON.stringify(meResult)}`);
+
+                    if (meResponse.status === 200) {
+                        addResult('✅ Token is valid', true);
+                    } else {
+                        addResult('❌ Token is invalid', false);
+                    }
+                } catch (error) {
+                    addResult(`❌ Token validation failed: ${error.message}`, false);
+                }
+            } else {
+                addResult('❌ Login failed', false);
+                addResult(`Error: ${loginResult.data.message}`, false);
+            }
+
+            addResult('Frontend authentication test complete');
+        }
+    </script>
+</body>
+</html>

@@ -70,17 +70,14 @@ def me_view(request):
 # ============================================================================
 
 class EventListCreateView(generics.ListCreateAPIView):
-    """List events and create new events - Universal access model"""
+    """List events and create new events - User-specific access model"""
     serializer_class = EventSerializer
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
         user = self.request.user
-        # Universal access: Return ALL events for browsing
-        # Users will see all events but with different access levels
-        return Event.objects.filter(
-            is_active=True
-        ).distinct().annotate(
+        # Only return events the user has access to
+        return user.get_accessible_events().annotate(
             question_count=Count('questions')
         ).order_by('-created_at')
     
@@ -93,7 +90,7 @@ class EventListCreateView(generics.ListCreateAPIView):
             created_by=self.request.user,
             share_link=share_link,
             invite_link=invite_link,
-            is_public=False  # Default to private, creator can change later
+            is_public=False  # Default to private
         )
         
         # Creator automatically becomes a moderator
@@ -153,13 +150,66 @@ class EventDetailView(generics.RetrieveUpdateDestroyAPIView):
 @api_view(['POST'])
 def join_event_view(request, share_link):
     """Join event via share link"""
-    event = get_object_or_404(Event, share_link=share_link)
-    event.participants.add(request.user)
-    return Response({
-        'success': True,
-        'data': EventSerializer(event).data,
-        'message': f'Successfully joined {event.name}'
-    })
+    try:
+        event = get_object_or_404(Event, share_link=share_link)
+        user = request.user
+        
+        # Check if user is already connected to this event
+        if event.can_user_access(user):
+            return Response({
+                'success': True,
+                'data': EventSerializer(event, context={'request': request}).data,
+                'message': f'You already have access to {event.name}',
+                'role': event.get_user_role_in_event(user)
+            })
+        
+        # Add user as participant
+        event.participants.add(user)
+        
+        return Response({
+            'success': True,
+            'data': EventSerializer(event, context={'request': request}).data,
+            'message': f'Successfully joined {event.name}',
+            'role': 'participant'
+        })
+        
+    except Event.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Invalid or expired share link'
+        }, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['POST'])  
+def join_event_by_invite(request, invite_link):
+    """Join event via invite link"""
+    try:
+        event = get_object_or_404(Event, invite_link=invite_link)
+        user = request.user
+        
+        # Check if user is already connected to this event
+        if event.can_user_access(user):
+            return Response({
+                'success': True,
+                'data': EventSerializer(event, context={'request': request}).data,
+                'message': f'You already have access to {event.name}',
+                'role': event.get_user_role_in_event(user)
+            })
+        
+        # Add user as participant
+        event.participants.add(user)
+        
+        return Response({
+            'success': True,
+            'data': EventSerializer(event, context={'request': request}).data,
+            'message': f'Successfully joined {event.name}',
+            'role': 'participant'
+        })
+        
+    except Event.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Invalid or expired invite link'
+        }, status=status.HTTP_404_NOT_FOUND)
 
 # ============================================================================
 # QUESTION VIEWS  

@@ -85,9 +85,34 @@ export const eventService = {
    * @throws Error if event doesn't exist or user doesn't have access
    */
   async getEvent(id: string): Promise<Event> {
-    // Request specific event data from the server
-    const response = await apiClient.get<ApiResponse<Event>>(`/events/${id}/`);
-    return response.data.data;
+    console.log('EventService: Fetching event by ID:', id);
+    try {
+      // Request specific event data from the server
+      const response = await apiClient.get(`/events/${id}/`);
+      console.log('EventService: Event response:', response.data);
+      
+      // DRF generic views return data directly, not wrapped
+      return response.data;
+    } catch (error: any) {
+      console.error('EventService: Error fetching event:', error);
+      
+      // Handle specific error cases
+      if (error.response?.status === 404) {
+        throw new Error('Event not found or you do not have access to it');
+      }
+      
+      if (error.response?.status === 403) {
+        throw new Error('You do not have permission to access this event');
+      }
+      
+      // Handle network errors
+      if (error.message === 'Network Error') {
+        throw new Error('Network error. Please check if the backend server is running.');
+      }
+      
+      // Re-throw other errors
+      throw error;
+    }
   },
 
   /**

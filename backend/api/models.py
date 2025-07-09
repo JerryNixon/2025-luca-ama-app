@@ -13,6 +13,11 @@ class User(AbstractUser):
         ('user', 'User'),           # Regular user
     ]
     
+    AUTH_SOURCES = [
+        ('manual', 'Manual Database'),
+        ('microsoft', 'Microsoft Entra ID'),
+    ]
+    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
     name = models.CharField(max_length=100)
@@ -22,6 +27,7 @@ class User(AbstractUser):
     # New fields for Microsoft Entra ID integration
     microsoft_id = models.CharField(max_length=100, null=True, blank=True, unique=True)
     is_admin = models.BooleanField(default=False)  # System admin flag
+    auth_source = models.CharField(max_length=20, choices=AUTH_SOURCES, default='manual')
     
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['name']
@@ -33,6 +39,26 @@ class User(AbstractUser):
     def is_system_admin(self):
         """Check if user is system administrator"""
         return self.is_admin or self.role == 'admin'
+    
+    def get_accessible_events(self):
+        """Get all events this user can access"""
+        from django.db.models import Q
+        
+        # User can access events they:
+        # 1. Created
+        # 2. Are moderators of
+        # 3. Are participants of (joined via link)
+        # 4. Are public (but only if they're participants)
+        
+        return Event.objects.filter(
+            Q(created_by=self) |  # Created by user
+            Q(moderators=self) |  # User is moderator
+            Q(participants=self)  # User is participant
+        ).distinct()
+    
+    def get_role_in_event(self, event):
+        """Get user's role in a specific event"""
+        return event.get_user_role_in_event(self)
 
 # Event class
 class Event(models.Model):
@@ -65,9 +91,8 @@ class Event(models.Model):
     
     def can_user_access(self, user):
         """Check if user can access this event"""
-        return (self.can_user_moderate(user) or 
-                user in self.participants.all() or 
-                self.is_public)
+        # User can access if they have any role in the event
+        return self.get_user_role_in_event(user) != 'no_access'
     
     def get_user_role_in_event(self, user):
         """Get user's role in this specific event"""
@@ -79,10 +104,51 @@ class Event(models.Model):
             return 'moderator'
         elif user in self.participants.all():
             return 'participant'
-        elif self.is_public:
-            return 'visitor'
         else:
             return 'no_access'
+    
+    def get_user_permissions(self, user):
+        """Get detailed permissions for a user in this event"""
+        role = self.get_user_role_in_event(user)
+        
+        if role == 'no_access':
+            return {
+                'can_view': False,
+                'can_ask_questions': False,
+                'can_vote': False,
+                'can_moderate': False,
+                'can_edit_event': False,
+                'can_delete_event': False,
+                'can_add_moderators': False,
+                'view_type': 'no_access'
+            }
+        
+        # Base permissions for all users with access
+        permissions = {
+            'can_view': True,
+            'can_ask_questions': True,
+            'can_vote': True,
+            'can_moderate': False,
+            'can_edit_event': False,
+            'can_delete_event': False,
+            'can_add_moderators': False,
+            'view_type': 'user'
+        }
+        
+        # Enhanced permissions for moderators and creators
+        if role in ['creator', 'moderator', 'admin']:
+            permissions.update({
+                'can_moderate': True,
+                'can_edit_event': True,
+                'can_add_moderators': True,
+                'view_type': 'moderator'
+            })
+        
+        # Creator and admin can delete events
+        if role in ['creator', 'admin']:
+            permissions['can_delete_event'] = True
+        
+        return permissions
 # Question class
 class Question(models.Model):
     """Question model for AMA sessions"""

@@ -64,19 +64,18 @@ export default function CreateEventPage() {
     
     // Check if user has permission to create events
     if (!isLoading && isAuthenticated && user) {
-      if (user.role !== 'moderator' && user.role !== 'presenter') {
+      // With the new system, all authenticated users can create events
+      if (!user.can_create_events) {
         // Redirect unauthorized users to home page
         router.push('/');
         return;
       }
       
-      // Auto-fill presenter field if user is a presenter
-      if (user.role === 'presenter') {
-        setFormData(prev => ({
-          ...prev,
-          presenter: user.name || ''
-        }));
-      }
+      // Auto-fill presenter field with user's name
+      setFormData(prev => ({
+        ...prev,
+        presenter: user.name || ''
+      }));
     }
   }, [isLoading, isAuthenticated, user, router]);
 
@@ -120,7 +119,7 @@ export default function CreateEventPage() {
       }
 
       // Combine date and time for open_date if provided
-      let open_date = null;
+      let open_date: string | undefined = undefined;
       if (formData.scheduledDate && formData.scheduledTime) {
         open_date = new Date(`${formData.scheduledDate}T${formData.scheduledTime}`).toISOString();
       }
@@ -129,7 +128,7 @@ export default function CreateEventPage() {
       const eventData = {
         name: formData.name.trim(),
         open_date: open_date,
-        close_date: null, // Can be extended later
+        close_date: undefined, // Can be extended later
       };
 
       console.log('Creating event with data:', eventData);
@@ -174,7 +173,7 @@ export default function CreateEventPage() {
   }
 
   // Don't render if user doesn't have permission (will redirect)
-  if (user.role !== 'moderator' && user.role !== 'presenter') {
+  if (!user.can_create_events) {
     return null;
   }
 

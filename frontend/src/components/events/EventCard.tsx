@@ -46,6 +46,39 @@ export default function EventCard({ event, onClick }: EventCardProps) {
   const canModerate = event.can_user_moderate || false;
   const canAccess = event.can_user_access || false;
   const isCreator = event.is_created_by_user || false;
+  const userPermissions = event.user_permissions || {
+    can_view: false,
+    can_ask_questions: false,
+    can_vote: false,
+    can_moderate: false,
+    can_edit_event: false,
+    can_delete_event: false,
+    can_add_moderators: false,
+    view_type: 'no_access'
+  };
+
+  // Don't render the card if user has no access
+  if (userRole === 'no_access' || !canAccess) {
+    return null;
+  }
+
+  // Get role display information
+  const getRoleDisplay = () => {
+    switch (userRole) {
+      case 'admin':
+        return { text: 'Admin', color: 'bg-red-100 text-red-800', icon: '👑' };
+      case 'creator':
+        return { text: 'Creator', color: 'bg-blue-100 text-blue-800', icon: '🎯' };
+      case 'moderator':
+        return { text: 'Moderator', color: 'bg-green-100 text-green-800', icon: '🛡️' };
+      case 'participant':
+        return { text: 'Participant', color: 'bg-yellow-100 text-yellow-800', icon: '👤' };
+      default:
+        return { text: 'Visitor', color: 'bg-gray-100 text-gray-800', icon: '👁️' };
+    }
+  };
+
+  const roleDisplay = getRoleDisplay();
 
   return (
     <div
@@ -67,19 +100,9 @@ export default function EventCard({ event, onClick }: EventCardProps) {
             )}
             
             {/* User Role Badge - Shows user's role in this event */}
-            {userRole !== 'no_access' && userRole !== 'visitor' && (
-              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                isCreator ? 'bg-purple-100 text-purple-800' :
-                canModerate ? 'bg-blue-100 text-blue-800' :
-                userRole === 'participant' ? 'bg-yellow-100 text-yellow-800' :
-                'bg-gray-100 text-gray-800'
-              }`}>
-                {isCreator ? 'Creator' : 
-                 canModerate ? 'Moderator' : 
-                 userRole === 'participant' ? 'Participant' : 
-                 'Visitor'}
-              </span>
-            )}
+            <span className={`px-2 py-1 text-xs font-medium rounded-full ${roleDisplay.color}`}>
+              {roleDisplay.icon} {roleDisplay.text}
+            </span>
             
             {/* Event Privacy Badge - Shows if event is public or private */}
             {event.is_public !== undefined && (

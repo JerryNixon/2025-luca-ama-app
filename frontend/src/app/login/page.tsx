@@ -1,73 +1,38 @@
-// Login Page Component - Dual authentication interface
-// This page handles both Microsoft Entra ID OAuth and manual database login
-
-// Mark as client component for form handling and state management
+// Login Page Component - Simplified dual authentication interface
 'use client';
 
-// Import React hooks for state management
 import { useState, useEffect } from 'react';
-// Import authentication context for login functionality
 import { useAuth } from '@/contexts/AuthContext';
-// Import Next.js router for navigation after successful login
 import { useRouter } from 'next/navigation';
-// Import Next.js Link component for internal navigation
 import Link from 'next/link';
 
-/**
- * LoginPage Component
- * 
- * This component provides a dual authentication interface with:
- * - Microsoft Entra ID OAuth login (primary method)
- * - Manual database login (for admin-added users)
- * - Dynamic UI based on user type
- * - Form validation and error handling
- * - Loading states during authentication
- * 
- * @returns JSX element representing the login page
- */
 export default function LoginPage() {
-  // Get authentication functions from context
   const { login, microsoftLogin, getMicrosoftOAuthUrl, checkUserExists, isLoading } = useAuth();
-  // Router instance for programmatic navigation after login
   const router = useRouter();
   
-  // Form state management
-  const [email, setEmail] = useState('');           // User's email input
-  const [password, setPassword] = useState('');     // User's password input
-  const [error, setError] = useState('');           // Error message for failed attempts
-  const [authMethod, setAuthMethod] = useState<'choose' | 'microsoft' | 'manual'>('choose'); // Authentication method
-  const [userExists, setUserExists] = useState<boolean | null>(null); // Whether user exists in database
-  const [checkingUser, setCheckingUser] = useState(false); // Loading state for user check
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [userExists, setUserExists] = useState<boolean | null>(null);
+  const [checkingUser, setCheckingUser] = useState(false);
 
-  // Clear any existing authentication tokens when login page loads
+  // Clear tokens on page load
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('demo_token');
-      console.log('Cleared existing demo tokens');
     }
   }, []);
 
-  /**
-   * Check if user exists in database when email is entered
-   */
+  // Check if user exists when email is entered
   const handleEmailChange = async (newEmail: string) => {
     setEmail(newEmail);
     setError('');
     
-    // Only check if it's a valid email format
     if (newEmail.includes('@') && newEmail.includes('.')) {
       setCheckingUser(true);
       try {
         const exists = await checkUserExists(newEmail);
         setUserExists(exists);
-        
-        // If user exists in database, default to manual login
-        // If user doesn't exist, they should use Microsoft OAuth
-        if (exists) {
-          setAuthMethod('manual');
-        } else {
-          setAuthMethod('microsoft');
-        }
       } catch (error) {
         console.error('Error checking user existence:', error);
         setUserExists(null);
@@ -76,18 +41,14 @@ export default function LoginPage() {
       }
     } else {
       setUserExists(null);
-      setAuthMethod('choose');
     }
   };
 
-  /**
-   * Handle Microsoft OAuth login
-   */
+  // Handle Microsoft OAuth login
   const handleMicrosoftLogin = async () => {
     setError('');
     try {
       const oauthUrl = await getMicrosoftOAuthUrl();
-      // Redirect to Microsoft OAuth
       window.location.href = oauthUrl;
     } catch (err) {
       setError('Failed to initiate Microsoft login. Please try again.');
@@ -95,28 +56,36 @@ export default function LoginPage() {
     }
   };
 
-  /**
-   * Handle manual database login
-   */
-  const handleManualLogin = async (e: React.FormEvent) => {
+  // Handle database login
+  const handleDatabaseLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
+    if (!email || !password) {
+      setError('Please enter both email and password.');
+      return;
+    }
+
+    console.log('Attempting database login for:', email);
+    console.log('Password provided:', password ? 'Yes' : 'No');
+
     try {
+      console.log('Calling login function...');
       await login({ email, password });
+      console.log('Login successful, redirecting to dashboard');
       router.push('/dashboard');
-    } catch (err) {
-      setError('Invalid credentials. Please try again.');
-      console.error('Manual login failed:', err);
+    } catch (err: any) {
+      console.error('Database login failed:', err);
+      console.error('Error details:', err.response?.data);
+      setError(`Invalid credentials. Please try again. (${err.message})`);
     }
   };
 
-  // Render login page with dual authentication options
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         
-        {/* Page Header */}
+        {/* Header */}
         <div>
           <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
             Sign in to Luca AMA
@@ -126,18 +95,24 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Error Message Display */}
+        {/* Error Message */}
         {error && (
           <div className="bg-red-50 border border-red-300 text-red-800 px-4 py-3 rounded-lg">
             {error}
           </div>
         )}
 
-        {/* Authentication Method Selection */}
-        {authMethod === 'choose' && (
-          <div className="space-y-6">
-            
-            {/* Email Input for User Detection */}
+        {/* Database Login Form */}
+        <form className="space-y-6" onSubmit={handleDatabaseLogin}>
+          <div className="text-center">
+            <h3 className="text-lg font-medium text-gray-900">Database Login</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              Sign in with your email and password.
+            </p>
+          </div>
+          
+          <div className="space-y-4">
+            {/* Email Input */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Email address
@@ -148,13 +123,13 @@ export default function LoginPage() {
                 type="email"
                 autoComplete="email"
                 required
-                className="input-field mt-1"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={email}
                 onChange={(e) => handleEmailChange(e.target.value)}
-                placeholder="Enter your email to get started"
+                placeholder="Enter your email address"
               />
               
-              {/* User Status Indicator */}
+              {/* User Status */}
               {checkingUser && (
                 <p className="mt-2 text-sm text-gray-600">
                   🔍 Checking if you have an account...
@@ -163,148 +138,78 @@ export default function LoginPage() {
               
               {userExists === true && (
                 <p className="mt-2 text-sm text-green-600">
-                  ✅ Account found! You can log in with your password.
+                  ✅ Account found! You can log in with your password below.
                 </p>
               )}
               
               {userExists === false && (
                 <p className="mt-2 text-sm text-blue-600">
-                  🔑 New user? Sign in with Microsoft Entra ID.
+                  ℹ️ Account not found in database. You can use Microsoft login or try password login.
                 </p>
               )}
             </div>
-
-            {/* Authentication Options */}
-            <div className="space-y-4">
-              
-              {/* Microsoft OAuth Login */}
-              <button
-                onClick={handleMicrosoftLogin}
-                disabled={isLoading}
-                className="w-full flex justify-center items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-              >
-                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                  <path fill="#00BCF2" d="M0 0h11.377v11.372H0z"/>
-                  <path fill="#0078D4" d="M12.623 0H24v11.372H12.623z"/>
-                  <path fill="#00BCF2" d="M0 12.623h11.377V24H0z"/>
-                  <path fill="#FFB900" d="M12.623 12.623H24V24H12.623z"/>
-                </svg>
-                {isLoading ? 'Redirecting...' : 'Sign in with Microsoft'}
-              </button>
-              
-              {/* Manual Login Option */}
-              <button
-                onClick={() => setAuthMethod('manual')}
-                disabled={isLoading}
-                className="w-full flex justify-center items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
-              >
-                🔑 Sign in with Password
-              </button>
+            
+            {/* Password Input */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+              />
             </div>
           </div>
-        )}
 
-        {/* Microsoft OAuth Method */}
-        {authMethod === 'microsoft' && (
-          <div className="space-y-6">
-            <div className="text-center">
-              <h3 className="text-lg font-medium text-gray-900">Microsoft Account Required</h3>
-              <p className="mt-2 text-sm text-gray-600">
-                Your email ({email}) is not in our database. Please sign in with your Microsoft account.
-              </p>
-            </div>
-            
+          <div className="space-y-4">
             <button
-              onClick={handleMicrosoftLogin}
+              type="submit"
               disabled={isLoading}
-              className="w-full flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                <path fill="currentColor" d="M0 0h11.377v11.372H0z"/>
-                <path fill="currentColor" d="M12.623 0H24v11.372H12.623z"/>
-                <path fill="currentColor" d="M0 12.623h11.377V24H0z"/>
-                <path fill="currentColor" d="M12.623 12.623H24V24H12.623z"/>
-              </svg>
-              {isLoading ? 'Redirecting to Microsoft...' : 'Continue with Microsoft'}
-            </button>
-            
-            <button
-              onClick={() => setAuthMethod('choose')}
-              className="w-full text-sm text-gray-600 hover:text-gray-500"
-            >
-              ← Back to login options
+              {isLoading ? 'Signing in...' : 'Sign In'}
             </button>
           </div>
-        )}
+        </form>
 
-        {/* Manual Database Login */}
-        {authMethod === 'manual' && (
-          <form className="space-y-6" onSubmit={handleManualLogin}>
-            <div className="text-center">
-              <h3 className="text-lg font-medium text-gray-900">Database Login</h3>
-              <p className="mt-2 text-sm text-gray-600">
-                Your account ({email}) was found in our database. Please enter your password.
-              </p>
-            </div>
-            
-            <div className="space-y-4">
-              {/* Email (read-only) */}
-              <div>
-                <label htmlFor="email-readonly" className="block text-sm font-medium text-gray-700">
-                  Email address
-                </label>
-                <input
-                  id="email-readonly"
-                  type="email"
-                  className="input-field mt-1 bg-gray-50"
-                  value={email}
-                  readOnly
-                />
-              </div>
-              
-              {/* Password */}
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  Password
-                </label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  className="input-field mt-1"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                />
-              </div>
-            </div>
+        {/* Divider */}
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-gray-50 text-gray-500">Or</span>
+          </div>
+        </div>
 
-            <div className="space-y-4">
-              <button
-                type="submit"
-                disabled={isLoading}
-                className={`w-full btn-primary ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                {isLoading ? 'Signing in...' : 'Sign in'}
-              </button>
-              
-              <button
-                type="button"
-                onClick={() => setAuthMethod('choose')}
-                className="w-full text-sm text-gray-600 hover:text-gray-500"
-              >
-                ← Back to login options
-              </button>
-            </div>
-          </form>
-        )}
+        {/* Microsoft Login */}
+        <div className="space-y-4">
+          <button
+            onClick={handleMicrosoftLogin}
+            disabled={isLoading}
+            className="w-full flex justify-center items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+          >
+            <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+              <path fill="#00BCF2" d="M0 0h11.377v11.372H0z"/>
+              <path fill="#0078D4" d="M12.623 0H24v11.372H12.623z"/>
+              <path fill="#00BCF2" d="M0 12.623h11.377V24H0z"/>
+              <path fill="#FFB900" d="M12.623 12.623H24V24H12.623z"/>
+            </svg>
+            {isLoading ? 'Redirecting...' : 'Sign in with Microsoft'}
+          </button>
+        </div>
 
         {/* Footer */}
         <div className="text-center text-sm text-gray-600">
           <p>
-            <Link href="/" className="text-primary-600 hover:text-primary-500">
+            <Link href="/" className="text-blue-600 hover:text-blue-500">
               Back to Home
             </Link>
           </p>

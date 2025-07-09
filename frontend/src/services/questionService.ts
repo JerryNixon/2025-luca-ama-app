@@ -53,10 +53,12 @@ export const questionService = {
     if (filters?.sortOrder) params.append('sort_order', filters.sortOrder);
 
     // Make request with constructed query parameters
-    const response = await apiClient.get<ApiResponse<Question[]>>(
+    const response = await apiClient.get<Question[]>(
       `/events/${eventId}/questions/?${params.toString()}`
     );
-    return response.data.data;
+    
+    // DRF returns data directly, not wrapped
+    return response.data;
   },
 
   /**
@@ -70,8 +72,8 @@ export const questionService = {
    * @throws Error if question doesn't exist or user doesn't have access
    */
   async getQuestion(questionId: string): Promise<Question> {
-    const response = await apiClient.get<ApiResponse<Question>>(`/questions/${questionId}/`);
-    return response.data.data;
+    const response = await apiClient.get<Question>(`/questions/${questionId}/`);
+    return response.data;
   },
 
   /**
@@ -86,11 +88,11 @@ export const questionService = {
    * @throws Error if event is closed or user lacks permissions
    */
   async createQuestion(eventId: string, questionData: CreateQuestionForm): Promise<Question> {
-    const response = await apiClient.post<ApiResponse<Question>>(
+    const response = await apiClient.post<Question>(
       `/events/${eventId}/questions/`,
       questionData
     );
-    return response.data.data;
+    return response.data;
   },
 
   /**
@@ -104,9 +106,9 @@ export const questionService = {
    * @returns Promise resolving to the updated Question object
    * @throws Error if question doesn't exist or user lacks permissions
    */
-  async updateQuestion(questionId: string, questionData: Partial<CreateQuestionForm>): Promise<Question> {
-    const response = await apiClient.put<ApiResponse<Question>>(`/questions/${questionId}/`, questionData);
-    return response.data.data;
+  async updateQuestion(questionId: string, questionData: Partial<Question>): Promise<Question> {
+    const response = await apiClient.put<Question>(`/questions/${questionId}/`, questionData);
+    return response.data;
   },
 
   /**
@@ -135,8 +137,8 @@ export const questionService = {
    * @throws Error if user already upvoted or question doesn't exist
    */
   async upvoteQuestion(questionId: string): Promise<Question> {
-    const response = await apiClient.post<ApiResponse<Question>>(`/questions/${questionId}/upvote/`);
-    return response.data.data;
+    const response = await apiClient.post<Question>(`/questions/${questionId}/upvote/`);
+    return response.data;
   },
 
   /**
@@ -150,8 +152,8 @@ export const questionService = {
    * @throws Error if user hasn't upvoted or question doesn't exist
    */
   async removeUpvote(questionId: string): Promise<Question> {
-    const response = await apiClient.delete<ApiResponse<Question>>(`/questions/${questionId}/upvote/`);
-    return response.data.data;
+    const response = await apiClient.delete<Question>(`/questions/${questionId}/upvote/`);
+    return response.data;
   },
 
   /**
@@ -166,10 +168,10 @@ export const questionService = {
    * @throws Error if user lacks moderation permissions
    */
   async markAsAnswered(questionId: string, isAnswered: boolean): Promise<Question> {
-    const response = await apiClient.patch<ApiResponse<Question>>(`/questions/${questionId}/`, {
+    const response = await apiClient.patch<Question>(`/questions/${questionId}/`, {
       isAnswered
     });
-    return response.data.data;
+    return response.data;
   },
 
   /**
@@ -185,10 +187,10 @@ export const questionService = {
    * @throws Error if user lacks moderation permissions
    */
   async toggleStar(questionId: string, isStarred: boolean): Promise<Question> {
-    const response = await apiClient.patch<ApiResponse<Question>>(`/questions/${questionId}/`, {
+    const response = await apiClient.patch<Question>(`/questions/${questionId}/`, {
       isStarred
     });
-    return response.data.data;
+    return response.data;
   },
 
   /**
