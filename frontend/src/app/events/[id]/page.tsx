@@ -8,6 +8,8 @@ import { eventService } from '../../../services/eventService';
 import { questionService } from '../../../services/questionService';
 import { FiStar, FiArrowUp, FiCheck, FiEye, FiTrash2, FiPlus, FiMinus, FiFilter } from 'react-icons/fi';
 import { EventHeaderSkeleton, QuestionCardSkeleton } from '../../../components/ui/LoadingSkeleton';
+import { useRealTimeSync } from '../../../hooks/useRealTimeSync';
+import { useOptimisticUpdates } from '../../../hooks/useOptimisticUpdates';
 
 
 /**
@@ -61,6 +63,24 @@ export default function EventDetailsPage() {
   const lastActionRef = useRef<{ action: string; timestamp: number } | null>(null);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Helper function to check if an action is currently processing
+  const isProcessing = useCallback((actionKey: string) => {
+    return processingActions.has(actionKey);
+  }, [processingActions]);
+
+  // Helper function to set processing state
+  const setProcessing = useCallback((actionKey: string, processing: boolean) => {
+    setProcessingActions(prev => {
+      const newSet = new Set(prev);
+      if (processing) {
+        newSet.add(actionKey);
+      } else {
+        newSet.delete(actionKey);
+      }
+      return newSet;
+    });
+  }, []);
+
   // Initialize moderator note texts when questions load
   useEffect(() => {
     const noteTexts: Record<string, string> = {};
@@ -78,11 +98,15 @@ export default function EventDetailsPage() {
   const canAccess = event?.can_user_access || false;
   const isCreator = event?.is_created_by_user || false;
 
+  // Track ongoing stage operations to prevent polling interference
+  const [stagingInProgress, setStagingInProgress] = useState<Set<string>>(new Set());
+
   /**
    * Manual refresh function for questions
    */
   const refreshQuestions = useCallback(async () => {
     try {
+      console.log('Refreshing questions...');
       const questionsData = await questionService.getQuestions(eventId);
       
       // Convert to ExtendedQuestion format
@@ -96,21 +120,55 @@ export default function EventDetailsPage() {
         answeredAt: undefined
       }));
       
-      setQuestions(extendedQuestions);
+      // Only update questions if no staging operations are in progress
+      // This prevents polling from overwriting optimistic updates
+      if (stagingInProgress.size === 0) {
+        setQuestions(extendedQuestions);
+        console.log('Questions refreshed successfully:', extendedQuestions.length);
+      } else {
+        console.log('Skipping refresh - staging operation in progress');
+      }
     } catch (err: any) {
-      console.error('Questions loading error:', err);
+      console.error('Questions refresh error:', err);
+      // Don't show error UI for refresh failures, just log them
     }
-  }, [eventId]);/**
+  }, [eventId, stagingInProgress]);
+
+  // Real-time sync setup
+  const handleQuestionsUpdate = useCallback((questionsData: Question[]) => {
+    // Convert to ExtendedQuestion format
+    const extendedQuestions: ExtendedQuestion[] = questionsData.map(q => ({
+      ...q,
+      isOnStage: q.is_staged,
+      moderatorNote: q.presenter_notes || '',
+      relatedQuestions: [],
+      answer: '',
+      answeredBy: '',
+      answeredAt: undefined
+    }));
+    
+    // Only update if no staging operations are in progress
+    if (stagingInProgress.size === 0) {
+      setQuestions(extendedQuestions);
+    }
+  }, [stagingInProgress]);
+
+  /**
    * Load event data and questions
    */
   useEffect(() => {
-    if (!isAuthenticated) {
+    // Check authentication status but don't redirect immediately
+    // Let the AuthContext handle authentication state properly
+    if (isAuthenticated === false) {
+      console.log('User not authenticated, redirecting to login');
       router.push('/login');
       return;
     }
 
-    // Load event data first to check permissions
-    loadEventData();
+    // Only proceed if user is authenticated
+    if (isAuthenticated && eventId) {
+      loadEventData();
+    }
   }, [eventId, isAuthenticated, router]);
   
   // Permission-based routing effect
@@ -144,14 +202,15 @@ export default function EventDetailsPage() {
     console.log('User has moderation rights or is not a participant, staying on main event page');
   }, [event, loading, canAccess, canModerate, userRole, eventId, router]);
 
-  // Set up periodic polling for questions in moderator view
+  // Set up polling for real-time updates in moderator view
   useEffect(() => {
     if (!event || !canModerate) return;
     
-    // Set up polling every 30 seconds to check for new questions
+    // Set up polling every 10 seconds for better performance
+    // Still responsive but reduces server load
     refreshIntervalRef.current = setInterval(() => {
       refreshQuestions();
-    }, 30000);
+    }, 10000);
     
     // Cleanup interval on unmount
     return () => {
@@ -160,9 +219,6 @@ export default function EventDetailsPage() {
       }
     };
   }, [event, canModerate, refreshQuestions]);
-  /**
-   * Filter questions based on active tab
-   */
 
   /**
    * Load event and question data from API
@@ -248,124 +304,218 @@ export default function EventDetailsPage() {
 
     return filtered;
   }, [questions, activeFilter, showModeratorsOnly, canModerate]);  /**
-   * Handle question voting with proper vote limitation
-   * Users can only vote once per question (toggle vote on/off)
+   * Handle question voting with optimistic updates for immediate feedback
    */
   const handleVote = useCallback(async (questionId: string) => {
     const actionKey = `vote-${questionId}`;
-    const now = Date.now();
     
-    // Prevent duplicate calls within 1 second
-    if (lastActionRef.current?.action === actionKey && 
-        (now - lastActionRef.current.timestamp) < 1000) {
-      console.log('Duplicate vote action prevented');
+    // Prevent multiple simultaneous calls
+    if (isProcessing(actionKey)) {
+      console.log('Vote action already in progress');
       return;
     }
     
-    lastActionRef.current = { action: actionKey, timestamp: now };
-    console.log('handleVote called for question:', questionId);
+    setProcessing(actionKey, true);
+    
+    // Find the question to update
+    const currentQuestion = questions.find(q => q.id === questionId);
+    if (!currentQuestion) return;
+    
+    const hasVoted = currentQuestion.has_user_upvoted;
+    const newVoteCount = hasVoted ? currentQuestion.upvotes - 1 : currentQuestion.upvotes + 1;
+    
+    // Apply optimistic update immediately
+    setQuestions(prev => prev.map(q => {
+      if (q.id === questionId) {
+        return {
+          ...q,
+          upvotes: newVoteCount,
+          has_user_upvoted: !hasVoted
+        };
+      }
+      return q;
+    }));
     
     try {
-      // Call API to toggle vote
+      // Call API to toggle vote (this will take 2+ seconds with Fabric SQL)
       await questionService.upvoteQuestion(questionId);
       
-      // Update local state after successful API call
+      // Optimistic update already applied, so we're done
+      console.log('✅ Vote confirmed by server');
+      
+    } catch (error) {
+      console.error('Failed to vote on question:', error);
+      
+      // Revert optimistic update on error
       setQuestions(prev => prev.map(q => {
         if (q.id === questionId) {
-          const hasVoted = q.has_user_upvoted;
-          const newVoteCount = hasVoted ? q.upvotes - 1 : q.upvotes + 1;
-          
           return {
             ...q,
-            upvotes: newVoteCount,
-            has_user_upvoted: !hasVoted
+            upvotes: currentQuestion.upvotes,
+            has_user_upvoted: currentQuestion.has_user_upvoted
           };
         }
         return q;
       }));
-    } catch (error) {
-      console.error('Failed to vote on question:', error);
+      
+      // Show error feedback
+      alert('Failed to update vote. Please try again.');
+    } finally {
+      setProcessing(actionKey, false);
     }
-  }, []);  /**
-   * Handle question starring (moderator/presenter only)
+  }, [isProcessing, setProcessing]);  /**
+   * Handle question starring with optimistic updates (moderator/presenter only)
    */
   const handleStar = useCallback(async (questionId: string) => {
     if (!canModerate) return;
     
     const actionKey = `star-${questionId}`;
-    const now = Date.now();
     
-    // Prevent duplicate calls within 1 second
-    if (lastActionRef.current?.action === actionKey && 
-        (now - lastActionRef.current.timestamp) < 1000) {
-      console.log('Duplicate star action prevented');
+    // Prevent multiple simultaneous calls
+    if (isProcessing(actionKey)) {
+      console.log('Star action already in progress');
       return;
     }
     
-    lastActionRef.current = { action: actionKey, timestamp: now };
-    console.log('handleStar called for question:', questionId);
+    setProcessing(actionKey, true);
+    
+    // Get current state to determine new starred status
+    const currentQuestion = questions.find(q => q.id === questionId);
+    if (!currentQuestion) return;
+    
+    const newStarred = !currentQuestion.is_starred;
+    
+    // Apply optimistic update immediately
+    setQuestions(prev => prev.map(q => {
+      if (q.id === questionId) {
+        return { ...q, is_starred: newStarred };
+      }
+      return q;
+    }));
     
     try {
-      // Get current state to determine new starred status
-      const currentQuestion = questions.find(q => q.id === questionId);
-      if (!currentQuestion) return;
-      
-      const newStarred = !currentQuestion.is_starred;
-      
-      // Call API to update starred status
+      // Call API to update starred status (slow with Fabric SQL)
       await questionService.updateQuestion(questionId, {
         is_starred: newStarred
       });
       
-      // Update local state after successful API call
+      console.log('✅ Star status confirmed by server');
+      
+    } catch (error) {
+      console.error('Failed to star/unstar question:', error);
+      
+      // Revert optimistic update on error
       setQuestions(prev => prev.map(q => {
         if (q.id === questionId) {
-          return { ...q, is_starred: newStarred };
+          return { ...q, is_starred: currentQuestion.is_starred };
         }
         return q;
       }));
-    } catch (error) {
-      console.error('Failed to star/unstar question:', error);
+      
+      alert('Failed to update star status. Please try again.');
+    } finally {
+      setProcessing(actionKey, false);
     }
-  }, [canModerate, questions]);  /**
-   * Handle staging question (moderator/presenter only)
+  }, [canModerate, questions, isProcessing, setProcessing]);  /**
+   * Handle staging question with optimistic updates (moderator/presenter only)
    * Only one question can be staged at a time
    */
   const handleStage = useCallback(async (questionId: string) => {
     if (!canModerate) return;
     
-    try {
-      // Get current state to determine new staged status
-      const currentQuestion = questions.find(q => q.id === questionId);
-      if (!currentQuestion) return;
-      
-      const newStaged = !currentQuestion.isOnStage;
-      
-      // Call API to update staged status
-      await questionService.updateQuestion(questionId, {
-        is_staged: newStaged
+    const actionKey = `stage-${questionId}`;
+    
+    // Prevent multiple simultaneous calls
+    if (isProcessing(actionKey)) {
+      console.log('Stage action already in progress');
+      return;
+    }
+    
+    setProcessing(actionKey, true);
+    
+    // Track this staging operation to prevent polling interference
+    setStagingInProgress(prev => new Set(prev).add(questionId));
+    
+    // Get current question state
+    const currentQuestion = questions.find(q => q.id === questionId);
+    if (!currentQuestion) {
+      setStagingInProgress(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(questionId);
+        return newSet;
       });
+      setProcessing(actionKey, false);
+      return;
+    }
+    
+    const willBeStaged = !currentQuestion.is_staged;
+    
+    // Apply optimistic update immediately
+    setQuestions(prev => prev.map(q => {
+      if (q.id === questionId) {
+        // Update the clicked question
+        return { ...q, is_staged: willBeStaged, isOnStage: willBeStaged };
+      } else if (willBeStaged) {
+        // If staging this question, unstage all others
+        return { ...q, is_staged: false, isOnStage: false };
+      }
+      // If unstaging, leave other questions unchanged
+      return q;
+    }));
+    
+    try {
+      // Use the dedicated staging endpoint (slow with Fabric SQL)
+      const updatedQuestion = await questionService.toggleStage(questionId);
       
-      // Update local state after successful API call
+      console.log('✅ Stage status confirmed by server');
+      
+      // Final update with server response
       setQuestions(prev => prev.map(q => {
         if (q.id === questionId) {
-          // Toggle the clicked question's stage status
-          return { ...q, isOnStage: newStaged };
-        } else if (newStaged) {
-          // If we're staging a new question, unstage all others
-          return { ...q, isOnStage: false };
+          return { ...q, is_staged: updatedQuestion.is_staged, isOnStage: updatedQuestion.is_staged };
+        } else if (updatedQuestion.is_staged) {
+          // Backend unstaged others, sync UI
+          return { ...q, is_staged: false, isOnStage: false };
         }
-        // If we're unstaging, leave other questions unchanged
         return q;
       }));
+      
     } catch (error) {
       console.error('Failed to stage/unstage question:', error);
+      
+      // Revert optimistic update on error
+      setQuestions(prev => prev.map(q => {
+        if (q.id === questionId) {
+          return { ...q, is_staged: currentQuestion.is_staged, isOnStage: currentQuestion.is_staged };
+        }
+        return q;
+      }));
+      
+      alert('Failed to update stage status. Please try again.');
+    } finally {
+      // Remove from staging tracking and processing
+      setStagingInProgress(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(questionId);
+        return newSet;
+      });
+      setProcessing(actionKey, false);
     }
-  }, [canModerate, questions]);  /**
+  }, [canModerate, questions, isProcessing, setProcessing]);  /**
    * Handle marking question as answered (moderator/presenter only)
    */
   const handleAnswer = useCallback(async (questionId: string) => {
     if (!canModerate) return;
+    
+    const actionKey = `answer-${questionId}`;
+    
+    // Prevent multiple simultaneous calls
+    if (isProcessing(actionKey)) {
+      console.log('Answer action already in progress');
+      return;
+    }
+    
+    setProcessing(actionKey, true);
     
     try {
       // Get current state to determine new answered status
@@ -393,8 +543,10 @@ export default function EventDetailsPage() {
       }));
     } catch (error) {
       console.error('Failed to mark question as answered/unanswered:', error);
+    } finally {
+      setProcessing(actionKey, false);
     }
-  }, [canModerate, user?.email, questions]);
+  }, [canModerate, user?.email, questions, isProcessing, setProcessing]);
 
   /**
    * Toggle the expanded state of related questions for a specific question

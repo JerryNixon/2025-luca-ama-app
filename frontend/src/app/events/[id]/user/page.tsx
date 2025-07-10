@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
 import { Event, Question, CreateQuestionForm } from '../../../../types';
@@ -8,6 +8,7 @@ import { FiArrowUp, FiSend, FiUser, FiEyeOff } from 'react-icons/fi';
 import QuestionCard from '../../../../components/questions/QuestionCard';
 import { eventService } from '../../../../services/eventService';
 import { questionService } from '../../../../services/questionService';
+import { useRealTimeSync } from '../../../../hooks/useRealTimeSync';
 
 /**
  * User Event View Page Component
@@ -58,17 +59,71 @@ export default function UserEventViewPage() {
   // Form validation
   const [showError, setShowError] = useState(false);
 
+  // Polling and refresh state
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  /**
+   * Manual refresh function for questions
+   */
+  const refreshQuestions = useCallback(async () => {
+    // Don't refresh while user is typing
+    if (isTyping) {
+      console.log('Skipping refresh while user is typing');
+      return;
+    }
+    
+    try {
+      console.log('Refreshing questions for user view...');
+      const questionsData = await questionService.getQuestions(eventId);
+      
+      // Convert questions to UserQuestion format with hasVoted info
+      const userQuestions: UserQuestion[] = questionsData.map(q => ({
+        ...q,
+        hasVoted: q.has_user_upvoted || false
+      }));
+
+      setQuestions(userQuestions);
+      console.log('Questions refreshed successfully:', userQuestions.length);
+    } catch (err: any) {
+      console.error('Questions refresh error:', err);
+    }
+  }, [eventId, isTyping]);
+
+  /**
+   * Handle typing state to pause auto-refresh
+   */
+  const handleTypingStart = useCallback(() => {
+    setIsTyping(true);
+    
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    
+    // Set typing to false after 2 seconds of no typing
+    typingTimeoutRef.current = setTimeout(() => {
+      setIsTyping(false);
+    }, 2000);
+  }, []);
+
   /**
    * Load event data and questions for user view
    */
   useEffect(() => {
-    if (!isAuthenticated) {
+    // Check authentication status but don't redirect immediately
+    // Let the AuthContext handle authentication state properly
+    if (isAuthenticated === false) {
+      console.log('User not authenticated, redirecting to login');
       router.push('/login');
       return;
     }
 
-    // Load event data regardless of role - let the backend handle permissions
-    loadEventData();
+    // Only proceed if user is authenticated
+    if (isAuthenticated && eventId) {
+      loadEventData();
+    }
   }, [eventId, isAuthenticated, router]);
 
   /**
@@ -77,6 +132,29 @@ export default function UserEventViewPage() {
   useEffect(() => {
     filterQuestions();
   }, [questions, activeFilter]);
+
+  /**
+   * Set up polling for real-time updates in user view
+   */
+  useEffect(() => {
+    if (!event) return;
+    
+    // Set up polling every 10 seconds for better performance
+    // Will be paused when user is typing
+    refreshIntervalRef.current = setInterval(() => {
+      refreshQuestions();
+    }, 10000);
+    
+    // Cleanup interval on unmount
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, [event, refreshQuestions]);
 
   /**
    * Load event and question data (user view)
@@ -302,11 +380,25 @@ export default function UserEventViewPage() {
       {/* Page Header */}
       <div className="bg-white border-b">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-gray-900">{event.name}</h1>
-            <p className="text-gray-600 mt-2">
-              Ask questions and vote on what matters most to you
-            </p>
+          <div className="flex items-center justify-between">
+            <div className="text-center flex-1">
+              <h1 className="text-3xl font-bold text-gray-900">{event.name}</h1>
+              <p className="text-gray-600 mt-2">
+                Ask questions and vote on what matters most to you
+              </p>
+            </div>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={refreshQuestions}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                title="Refresh questions"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -327,7 +419,10 @@ export default function UserEventViewPage() {
             <div>
               <textarea
                 value={questionText}
-                onChange={(e) => setQuestionText(e.target.value)}
+                onChange={(e) => {
+                  setQuestionText(e.target.value);
+                  handleTypingStart(); // Pause auto-refresh while typing
+                }}
                 placeholder="How is project Galactica advancing? Do we have any updates on funding and timelines?"
                 className={`w-full px-4 py-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
                   showError && !questionText.trim() 

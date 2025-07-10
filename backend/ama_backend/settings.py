@@ -124,6 +124,50 @@ print(f"User: {DATABASES['default']['USER'] or 'Integrated Auth'}")
 print(f"Auth: {auth_method}")
 
 
+# Performance optimizations for Microsoft Fabric SQL Database
+print("Applying Fabric SQL performance optimizations...")
+
+# Connection pooling - keep connections alive to reduce latency
+DATABASES['default']['CONN_MAX_AGE'] = 600  # 10 minutes
+
+# Reduce connection timeout for faster failure detection
+if 'OPTIONS' in DATABASES['default'] and 'extra_params' in DATABASES['default']['OPTIONS']:
+    # Update the existing extra_params to include shorter timeouts
+    current_params = DATABASES['default']['OPTIONS']['extra_params']
+    # Replace timeout values if they exist, otherwise add them
+    if 'ConnectTimeout=' in current_params:
+        import re
+        current_params = re.sub(r'ConnectTimeout=\d+', 'ConnectTimeout=10', current_params)
+    else:
+        current_params += ';ConnectTimeout=10'
+    
+    if 'Command Timeout=' in current_params:
+        current_params = re.sub(r'Command Timeout=\d+', 'Command Timeout=30', current_params)
+    else:
+        current_params += ';Command Timeout=30'
+    
+    DATABASES['default']['OPTIONS']['extra_params'] = current_params
+
+# Enable caching to reduce database hits
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'ama-cache',
+        'TIMEOUT': 300,  # 5 minutes
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000,
+            'CULL_FREQUENCY': 3,
+        }
+    }
+}
+
+# Cache sessions to reduce database load
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
+
+print("Performance optimizations applied successfully!")
+
+
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 

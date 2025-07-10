@@ -24,6 +24,10 @@ interface QuestionCardProps {
   onEdit?: () => void;                   // Callback for editing question (owners only)
   onDelete?: () => void;                 // Callback for deleting question (owners only)
   showActions?: boolean;                 // Whether to show action buttons (default: true)
+  isVoting?: boolean;                    // Whether vote action is in progress
+  isStarring?: boolean;                  // Whether star action is in progress
+  isStaging?: boolean;                   // Whether stage action is in progress
+  isAnswering?: boolean;                 // Whether answer action is in progress
 }
 
 /**
@@ -52,7 +56,11 @@ export default function QuestionCard({
   onAnswer,
   onEdit,
   onDelete,
-  showActions = true
+  showActions = true,
+  isVoting = false,
+  isStarring = false,
+  isStaging = false,
+  isAnswering = false
 }: QuestionCardProps) {
   // Determine if current user can moderate (star, stage, mark as answered)
   const canModerate = userRole === 'moderator' || userRole === 'presenter';
@@ -138,23 +146,23 @@ export default function QuestionCard({
 
           {/* Presenter Notes - Only visible to moderators and presenters */}
           {/* These are private notes to help with question preparation */}
-          {canModerate && question.presenterNotes && (
+          {canModerate && question.presenter_notes && (
             <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs font-medium text-yellow-800">Presenter Notes:</span>
               </div>
-              <p className="text-sm text-yellow-700">{question.presenterNotes}</p>
+              <p className="text-sm text-yellow-700">{question.presenter_notes}</p>
             </div>
           )}
 
           {/* AI Summary - Machine-generated summary or analysis */}
           {/* Helps presenters quickly understand complex questions */}
-          {question.aiSummary && (
+          {question.ai_summary && (
             <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs font-medium text-blue-800">AI Summary:</span>
               </div>
-              <p className="text-sm text-blue-700">{question.aiSummary}</p>
+              <p className="text-sm text-blue-700">{question.ai_summary}</p>
             </div>
           )}
         </div>
@@ -166,16 +174,20 @@ export default function QuestionCard({
               onClick={onUpvote}
               className={`flex flex-col items-center p-3 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 ${
                 // Different styling based on whether user has already upvoted
-                question.hasUserUpvoted
+                question.has_user_upvoted
                   ? 'bg-primary-100 text-primary-600 shadow-md pulse-on-hover'    // Active state - user has upvoted
                   : 'bg-gray-50 hover:bg-gray-100 text-gray-600 hover:shadow-md'  // Default state - can upvote
-              }`}
-              disabled={isOwner}  // Prevent users from upvoting their own questions
-              title={isOwner ? "Can't upvote your own question" : (question.hasUserUpvoted ? "Remove your vote" : "Vote for this question")}
+              } ${isVoting ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={isOwner || isVoting}  // Prevent users from upvoting their own questions or while loading
+              title={isVoting ? "Processing vote..." : (isOwner ? "Can't upvote your own question" : (question.has_user_upvoted ? "Remove your vote" : "Vote for this question"))}
             >
-              <FiArrowUp className={`w-5 h-5 transition-transform duration-200 ${question.hasUserUpvoted ? 'text-primary-600' : ''}`} />
-              <span className={`font-semibold text-lg transition-colors duration-200 ${question.hasUserUpvoted ? 'text-primary-600' : ''}`}>{question.upvotes}</span>
-              <span className={`text-xs transition-colors duration-200 ${question.hasUserUpvoted ? 'text-primary-500' : ''}`}>votes</span>
+              {isVoting ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
+              ) : (
+                <FiArrowUp className={`w-5 h-5 transition-transform duration-200 ${question.has_user_upvoted ? 'text-primary-600' : ''}`} />
+              )}
+              <span className={`font-semibold text-lg transition-colors duration-200 ${question.has_user_upvoted ? 'text-primary-600' : ''}`}>{question.upvotes}</span>
+              <span className={`text-xs transition-colors duration-200 ${question.has_user_upvoted ? 'text-primary-500' : ''}`}>votes</span>
             </button>
 
             {/* Moderator and Presenter Actions */}
@@ -185,40 +197,55 @@ export default function QuestionCard({
                 {/* Star/Unstar Button - Mark questions as important */}
                 <button
                   onClick={onStar}
+                  disabled={isStarring}
                   className={`p-2 rounded-lg transition-colors ${
                     question.is_starred
                       ? 'bg-yellow-100 text-yellow-700'    // Active - question is starred
                       : 'hover:bg-gray-100 text-gray-600'  // Inactive - can star
-                  }`}
-                  title={question.is_starred ? "Remove star" : "Star question"}
+                  } ${isStarring ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  title={isStarring ? "Processing..." : (question.is_starred ? "Remove star" : "Star question")}
                 >
-                  <FiStar className="w-4 h-4" />
+                  {isStarring ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600"></div>
+                  ) : (
+                    <FiStar className={`w-4 h-4 ${question.is_starred ? 'fill-current' : ''}`} />
+                  )}
                 </button>
 
                 {/* Stage/Unstage Button - Control which question is currently being presented */}
                 <button
                   onClick={onStage}
+                  disabled={isStaging}
                   className={`p-2 rounded-lg transition-colors ${
                     question.is_staged
                       ? 'bg-blue-100 text-blue-700'        // Active - question is on stage
                       : 'hover:bg-gray-100 text-gray-600'  // Inactive - can stage
-                  }`}
-                  title={question.is_staged ? "Remove from stage" : "Put on stage"}
+                  } ${isStaging ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  title={isStaging ? "Processing..." : (question.is_staged ? "Remove from stage" : "Put on stage")}
                 >
-                  🎭
+                  {isStaging ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  ) : (
+                    '🎭'
+                  )}
                 </button>
 
                 {/* Answer/Unanswer Button - Mark questions as answered */}
                 <button
                   onClick={onAnswer}
+                  disabled={isAnswering}
                   className={`p-2 rounded-lg transition-colors ${
                     question.is_answered
                       ? 'bg-green-100 text-green-700'      // Active - question is answered
                       : 'hover:bg-gray-100 text-gray-600'  // Inactive - can mark as answered
-                  }`}
-                  title={question.is_answered ? "Mark as unanswered" : "Mark as answered"}
+                  } ${isAnswering ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  title={isAnswering ? "Processing..." : (question.is_answered ? "Mark as unanswered" : "Mark as answered")}
                 >
-                  ✓
+                  {isAnswering ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
+                  ) : (
+                    '✓'
+                  )}
                 </button>
               </>
             )}

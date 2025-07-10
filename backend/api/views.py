@@ -279,6 +279,24 @@ class QuestionDetailView(generics.RetrieveUpdateDestroyAPIView):
             return Response({'success': False, 'message': 'Permission denied'}, 
                           status=status.HTTP_403_FORBIDDEN)
         
+        # Special handling for staging to enforce "only one question on stage at a time"
+        if 'is_staged' in request.data:
+            # Redirect staging operations to use the dedicated staging endpoint
+            if request.data.get('is_staged') and not question.is_staged:
+                # If trying to stage a question, ensure only one is staged at a time
+                Question.objects.filter(event=question.event).update(is_staged=False)
+                question.is_staged = True
+                question.save()
+            elif not request.data.get('is_staged') and question.is_staged:
+                # If unstaging, just unstage this question
+                question.is_staged = False
+                question.save()
+            
+            # Remove is_staged from request data to prevent double processing
+            request_data = request.data.copy()
+            del request_data['is_staged']
+            request._full_data = request_data
+        
         return super().update(request, *args, **kwargs)
 
 # ============================================================================

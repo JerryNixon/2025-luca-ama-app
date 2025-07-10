@@ -201,14 +201,11 @@ export const questionService = {
    * Only moderators and presenters can stage questions.
    * 
    * @param questionId - Unique identifier of the question
-   * @param isStaged - Whether the question should be staged
    * @returns Promise resolving to the updated Question object
-   * @throws Error if user lacks moderation permissions or another question is staged
+   * @throws Error if user lacks moderation permissions
    */
-  async toggleStage(questionId: string, isStaged: boolean): Promise<Question> {
-    const response = await apiClient.patch<ApiResponse<Question>>(`/questions/${questionId}/`, {
-      isStaged
-    });
+  async toggleStage(questionId: string): Promise<Question> {
+    const response = await apiClient.post<ApiResponse<Question>>(`/questions/${questionId}/stage/`);
     return response.data.data;
   },
 
