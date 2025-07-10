@@ -10,7 +10,7 @@ import django
 from django.conf import settings
 
 # Add the backend directory to the path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'backend'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 # Setup Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ama_backend.settings')

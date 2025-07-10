@@ -10,7 +10,7 @@ import requests
 import json
 
 # Add the project root to Python path
-sys.path.append('c:/Users/t-lucahadife/Documents/luca-ama-app/backend')
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'backend'))
 
 # Set Django settings module
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ama_backend.settings')

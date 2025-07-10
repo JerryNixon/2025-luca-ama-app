@@ -20,15 +20,38 @@ luca-ama-app/
 │   ├── tailwind.config.js # Tailwind CSS config
 │   ├── tsconfig.json     # TypeScript config
 │   └── README.md         # Frontend documentation
-├── backend/              # Django REST API (to be implemented)
+├── backend/              # Django REST API
+│   ├── ama_backend/      # Django project configuration
+│   ├── api/              # Main application (models, views, URLs)
+│   ├── scripts/          # Database utility scripts
+│   ├── tests/            # Backend-specific tests
+│   ├── management/       # Database management scripts
+│   ├── config/           # Configuration files and certificates
+│   ├── docs/             # Backend documentation
+│   ├── manage.py         # Django management script
 │   ├── requirements.txt  # Python dependencies
 │   └── README.md         # Backend documentation
+├── tools/                # Development and testing tools
+│   ├── tests/            # Comprehensive test scripts
+│   ├── debug/            # Debugging utilities
+│   ├── utils/            # Utility scripts and status checks
+│   ├── jerry_auth_test.html # Authentication test interface
+│   ├── test_frontend_auth.html # Frontend auth test
+│   └── README.md         # Tools documentation
+├── scripts/              # PowerShell startup scripts
+│   ├── start-app.ps1     # Start both frontend and backend
+│   ├── start-app-fixed.ps1 # Fixed startup script
+│   ├── start-backend.ps1 # Start backend only
+│   └── start-frontend.ps1 # Start frontend only
 ├── docs/                 # Project documentation
-│   ├── FRONTEND_SUMMARY.md # Complete frontend overview
+│   ├── guides/           # Development and usage guides
+│   ├── features/         # Feature documentation
+│   ├── fixes/            # Bug fixes and solutions
+│   ├── project/          # Project status and organization
 │   ├── API_SPEC.md       # API documentation
 │   ├── USER_STORIES.md   # Persona requirements
-│   ├── DEVELOPMENT.md    # Development guide
-│   └── PROJECT_COMPLETE.md # Project completion status
+│   ├── FRONTEND_SUMMARY.md # Frontend architecture
+│   └── README.md         # Documentation index
 ├── .vscode/              # VS Code workspace settings
 ├── .git/                 # Git repository
 ├── .gitignore           # Git ignore rules
