@@ -384,9 +384,13 @@ def stage_question_view(request, question_id):
     
     question.save()
     
+    # Serialize the full question object for frontend compatibility
+    from .serializers import QuestionSerializer
+    serializer = QuestionSerializer(question, context={'request': request})
+    
     return Response({
         'success': True,
-        'data': {'isStaged': question.is_staged},
+        'data': serializer.data,
         'message': f'Question {"staged" if question.is_staged else "unstaged"}'
     })
 
