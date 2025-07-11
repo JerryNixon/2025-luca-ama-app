@@ -1,16 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { Event } from '@/types';
 import apiClient from '@/lib/api';
-
-interface JoinLinkPageProps {
-  params: {
-    shareLink: string;
-  };
-}
+import Cookies from 'js-cookie';
 
 interface EventInfo {
   id: string;
@@ -18,7 +12,7 @@ interface EventInfo {
   created_by: string;
 }
 
-export default function JoinLinkPage({ params }: JoinLinkPageProps) {
+export default function JoinLinkPage({ params }: { params: { shareLink: string } }) {
   const { shareLink } = params;
   const { isAuthenticated, user, login } = useAuth();
   const router = useRouter();
@@ -127,8 +121,12 @@ export default function JoinLinkPage({ params }: JoinLinkPageProps) {
       });
 
       if (response.data.success) {
-        // Store auth data
-        await login(response.data.data.user, response.data.data.token, response.data.data.refresh);
+        // Store auth tokens directly
+        const { token, refresh } = response.data.data;
+        Cookies.set('access_token', token, { expires: 7 });
+        if (refresh) {
+          Cookies.set('refresh_token', refresh, { expires: 30 });
+        }
         
         setSuccess(true);
         setSuccessMessage(response.data.message);

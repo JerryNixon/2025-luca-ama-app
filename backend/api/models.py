@@ -101,7 +101,7 @@ class Event(models.Model):
                 self.save()
                 return share_code
     
-    def get_share_url(self, base_url='http://localhost:3000'):
+    def get_share_url(self, base_url='http://localhost:3001'):
         """Get the full share URL for this event"""
         if not self.share_link:
             self.generate_share_link()

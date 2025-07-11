@@ -87,12 +87,9 @@ class EventSerializer(serializers.ModelSerializer):
     
     def get_share_url(self, obj):
         """Get the full share URL for this event"""
-        request = self.context.get('request')
-        if request:
-            # Get the base URL from the request
-            base_url = f"{request.scheme}://{request.get_host()}"
-            return obj.get_share_url(base_url)
-        return obj.get_share_url()  # Use default localhost
+        # Always point to frontend URL, not backend
+        frontend_url = 'http://localhost:3001'  # Frontend is on port 3001
+        return obj.get_share_url(frontend_url)
     
     def get_user_role_in_event(self, obj):
         """Get current user's role in this event"""
