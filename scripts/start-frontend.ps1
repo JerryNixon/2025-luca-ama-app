@@ -2,8 +2,10 @@
 Write-Host "=== Starting AMA Frontend Server ===" -ForegroundColor Green
 Write-Host "Location: frontend directory" -ForegroundColor Yellow
 
-# Navigate to frontend directory
-Set-Location "c:\Users\t-lucahadife\Documents\luca-ama-app\frontend"
+# Navigate to frontend directory using relative path
+$projectRoot = Split-Path $PSScriptRoot -Parent
+$frontendPath = Join-Path $projectRoot "frontend"
+Set-Location $frontendPath
 
 # Install/update dependencies
 Write-Host "Checking Node dependencies..." -ForegroundColor Cyan

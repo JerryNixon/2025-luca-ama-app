@@ -2,8 +2,10 @@
 Write-Host "=== Starting AMA Backend Server ===" -ForegroundColor Green
 Write-Host "Location: backend directory" -ForegroundColor Yellow
 
-# Navigate to backend directory
-Set-Location "c:\Users\t-lucahadife\Documents\luca-ama-app\backend"
+# Navigate to backend directory using relative path
+$projectRoot = Split-Path $PSScriptRoot -Parent
+$backendPath = Join-Path $projectRoot "backend"
+Set-Location $backendPath
 
 # Check if virtual environment exists and activate it
 if (Test-Path ".venv/Scripts/Activate.ps1") {

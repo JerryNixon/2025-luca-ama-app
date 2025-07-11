@@ -26,7 +26,9 @@ try {
 
 # Start Backend
 Write-Host "🔧 Starting Django Backend..." -ForegroundColor Cyan
-Start-Process PowerShell -ArgumentList "-NoExit", "-Command", "cd 'c:\Users\t-lucahadife\Documents\luca-ama-app\backend'; python manage.py runserver 127.0.0.1:8000" -WindowStyle Normal
+$projectRoot = Split-Path $PSScriptRoot -Parent
+$backendPath = Join-Path $projectRoot "backend"
+Start-Process PowerShell -ArgumentList "-NoExit", "-Command", "cd '$backendPath'; python manage.py runserver 127.0.0.1:8000" -WindowStyle Normal
 
 # Wait for backend to initialize
 Write-Host "   Waiting for backend to initialize..." -ForegroundColor Gray
@@ -34,7 +36,8 @@ Start-Sleep -Seconds 5
 
 # Start Frontend
 Write-Host "🎨 Starting Next.js Frontend..." -ForegroundColor Cyan
-Start-Process PowerShell -ArgumentList "-NoExit", "-Command", "cd 'c:\Users\t-lucahadife\Documents\luca-ama-app\frontend'; npm run dev" -WindowStyle Normal
+$frontendPath = Join-Path $projectRoot "frontend"
+Start-Process PowerShell -ArgumentList "-NoExit", "-Command", "cd '$frontendPath'; npm run dev" -WindowStyle Normal
 
 # Wait for frontend to initialize
 Write-Host "   Waiting for frontend to initialize..." -ForegroundColor Gray

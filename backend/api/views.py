@@ -147,31 +147,146 @@ class EventDetailView(generics.RetrieveUpdateDestroyAPIView):
         
         return super().destroy(request, *args, **kwargs)
 
-@api_view(['POST'])
+@api_view(['GET', 'POST'])
+@permission_classes([permissions.AllowAny])  # Allow anonymous access for share links
 def join_event_view(request, share_link):
-    """Join event via share link"""
+    """Smart join event via share link - handles authentication and registration"""
     try:
         event = get_object_or_404(Event, share_link=share_link)
-        user = request.user
         
-        # Check if user is already connected to this event
-        if event.can_user_access(user):
+        # Check if event is active
+        if not event.is_currently_active():
+            return Response({
+                'success': False,
+                'message': 'This event is no longer available for joining'
+            }, status=status.HTTP_410_GONE)
+        
+        if request.method == 'GET':
+            # Return event info for the join page
             return Response({
                 'success': True,
-                'data': EventSerializer(event, context={'request': request}).data,
-                'message': f'You already have access to {event.name}',
-                'role': event.get_user_role_in_event(user)
+                'data': {
+                    'event': {
+                        'id': str(event.id),
+                        'name': event.name,
+                        'created_by': event.created_by.name,
+                    },
+                    'share_link': share_link
+                }
             })
         
-        # Add user as participant
-        event.participants.add(user)
-        
-        return Response({
-            'success': True,
-            'data': EventSerializer(event, context={'request': request}).data,
-            'message': f'Successfully joined {event.name}',
-            'role': 'participant'
-        })
+        elif request.method == 'POST':
+            # Handle join logic
+            if request.user.is_authenticated:
+                # User is already authenticated - add them to event
+                if event.can_user_access(request.user):
+                    return Response({
+                        'success': True,
+                        'data': EventSerializer(event, context={'request': request}).data,
+                        'message': f'You already have access to {event.name}',
+                        'role': event.get_user_role_in_event(request.user),
+                        'redirect_url': f'/events/{event.id}'
+                    })
+                
+                # Add user as participant
+                event.participants.add(request.user)
+                return Response({
+                    'success': True,
+                    'data': EventSerializer(event, context={'request': request}).data,
+                    'message': f'Successfully joined {event.name}',
+                    'role': 'participant',
+                    'redirect_url': f'/events/{event.id}'
+                })
+            else:
+                # User needs to authenticate/register
+                action = request.data.get('action')  # 'login' or 'register'
+                email = request.data.get('email')
+                password = request.data.get('password')
+                name = request.data.get('name')
+                
+                if not email or not password:
+                    return Response({
+                        'success': False,
+                        'message': 'Email and password are required'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                if action == 'register':
+                    # Register new user
+                    if User.objects.filter(email=email).exists():
+                        return Response({
+                            'success': False,
+                            'message': 'User with this email already exists. Please login instead.'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                    
+                    if not name:
+                        return Response({
+                            'success': False,
+                            'message': 'Name is required for registration'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                    
+                    # Create new user
+                    user = User.objects.create_user(
+                        username=email,
+                        email=email,
+                        password=password,
+                        name=name,
+                        auth_source='manual'
+                    )
+                    
+                    # Add user to event as participant
+                    event.participants.add(user)
+                    
+                    # Generate tokens
+                    refresh = RefreshToken.for_user(user)
+                    
+                    return Response({
+                        'success': True,
+                        'data': {
+                            'user': UserSerializer(user).data,
+                            'token': str(refresh.access_token),
+                            'refresh': str(refresh),
+                            'event': EventSerializer(event, context={'request': request}).data
+                        },
+                        'message': f'Successfully registered and joined {event.name}',
+                        'redirect_url': f'/events/{event.id}'
+                    })
+                
+                elif action == 'login':
+                    # Login existing user
+                    user = authenticate(email=email, password=password)
+                    if user:
+                        # Add user to event if not already there
+                        if not event.can_user_access(user):
+                            event.participants.add(user)
+                            message = f'Successfully logged in and joined {event.name}'
+                        else:
+                            message = f'Welcome back! You already have access to {event.name}'
+                        
+                        # Generate tokens
+                        refresh = RefreshToken.for_user(user)
+                        
+                        return Response({
+                            'success': True,
+                            'data': {
+                                'user': UserSerializer(user).data,
+                                'token': str(refresh.access_token),
+                                'refresh': str(refresh),
+                                'event': EventSerializer(event, context={'request': request}).data
+                            },
+                            'message': message,
+                            'redirect_url': f'/events/{event.id}'
+                        })
+                    else:
+                        return Response({
+                            'success': False,
+                            'message': 'Invalid email or password'
+                        }, status=status.HTTP_401_UNAUTHORIZED)
+                
+                else:
+                    return Response({
+                        'success': False,
+                        'message': 'Invalid action. Use "login" or "register"'
+                    }, status=status.HTTP_400_BAD_REQUEST)
         
     except Event.DoesNotExist:
         return Response({

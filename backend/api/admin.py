@@ -12,8 +12,8 @@ class UserAdmin(admin.ModelAdmin):
 
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
-    list_display = ['name', 'created_by', 'is_active', 'created_at']
-    list_filter = ['is_active', 'created_at']
+    list_display = ['name', 'created_by', 'created_at']
+    list_filter = ['created_at']
     search_fields = ['name']
     readonly_fields = ['id', 'created_at', 'updated_at']
 

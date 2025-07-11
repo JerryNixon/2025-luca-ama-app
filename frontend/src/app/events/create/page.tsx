@@ -16,6 +16,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 // Import event service for API calls
 import { eventService } from '@/services/eventService';
+// Import toast notifications
+import { useToast } from '@/components/ui/Toast';
 
 /**
  * CreateEventPage Component
@@ -37,6 +39,8 @@ export default function CreateEventPage() {
   const { addEvent, refetchEvents } = useEvents();
   // Get router instance for navigation
   const router = useRouter();
+  // Get toast notifications
+  const { success: showSuccess, error: showError } = useToast();
   
   // Form state management
   const [formData, setFormData] = useState({
@@ -53,6 +57,7 @@ export default function CreateEventPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [createdEvent, setCreatedEvent] = useState<any>(null);
 
   // Effect to handle authentication and authorization
   useEffect(() => {
@@ -143,18 +148,32 @@ export default function CreateEventPage() {
       // Also trigger a refetch to ensure consistency
       refetchEvents();
       
+      // Store the created event for display
+      setCreatedEvent(createdEvent);
+      
       // Show success message
       setSuccess(true);
       
-      // Redirect to events page after short delay
-      setTimeout(() => {
-        router.push('/events');
-      }, 1500);
+      // Don't auto-redirect, let user copy share link first
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create event');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  /**
+   * Copy share link to clipboard
+   */
+  const copyShareLink = async () => {
+    if (!createdEvent?.share_url) return;
+    
+    try {
+      await navigator.clipboard.writeText(createdEvent.share_url);
+      showSuccess('Share Link Copied!', 'The event share link has been copied to your clipboard.');
+    } catch (err) {
+      showError('Copy Failed', 'Unable to copy share link. Please select and copy the URL manually.');
     }
   };
 
@@ -216,19 +235,61 @@ export default function CreateEventPage() {
           </div>
 
           {/* Success Message */}
-          {success && (
-            <div className="mb-6 bg-green-50 border border-green-200 rounded-md p-4">
+          {success && createdEvent && (
+            <div className="mb-6 bg-green-50 border border-green-200 rounded-md p-6">
               <div className="flex">
                 <div className="flex-shrink-0">
                   <span className="text-green-400">✅</span>
                 </div>
-                <div className="ml-3">
+                <div className="ml-3 flex-1">
                   <h3 className="text-sm font-medium text-green-800">
                     Event Created Successfully!
                   </h3>
                   <p className="mt-1 text-sm text-green-700">
-                    Your AMA event has been created. Redirecting to events page...
+                    Your AMA event "{createdEvent.name}" has been created.
                   </p>
+                  
+                  {/* Share Link Section */}
+                  {createdEvent.share_url && (
+                    <div className="mt-4 p-4 bg-white rounded-md border border-green-200">
+                      <h4 className="text-sm font-medium text-green-800 mb-2">
+                        Event Share Link
+                      </h4>
+                      <p className="text-xs text-green-700 mb-3">
+                        Share this link with participants to let them join your event:
+                      </p>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          value={createdEvent.share_url}
+                          readOnly
+                          className="flex-1 px-3 py-2 text-sm border border-green-300 rounded-md bg-green-50 text-green-800 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                        <button
+                          onClick={copyShareLink}
+                          className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Navigation Actions */}
+                  <div className="mt-4 flex space-x-3">
+                    <Link
+                      href={`/events/${createdEvent.id}`}
+                      className="inline-flex items-center px-3 py-2 border border-green-600 rounded-md text-sm font-medium text-green-600 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                    >
+                      View Event
+                    </Link>
+                    <Link
+                      href="/events"
+                      className="inline-flex items-center px-3 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                    >
+                      All Events
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
@@ -252,8 +313,9 @@ export default function CreateEventPage() {
           )}
 
           {/* Create Event Form */}
-          <div className="bg-white shadow rounded-lg">
-            <form onSubmit={handleSubmit} className="space-y-6 p-6">
+          {!success && (
+            <div className="bg-white shadow rounded-lg">
+              <form onSubmit={handleSubmit} className="space-y-6 p-6">
               
               {/* Event Title */}
               <div>
@@ -411,6 +473,7 @@ export default function CreateEventPage() {
               </div>
             </form>
           </div>
+          )}
         </div>
       </main>
     </div>

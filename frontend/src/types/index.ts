@@ -42,7 +42,8 @@ export interface Event {
   created_by: any;               // User object who created this event
   moderators: any[];             // Array of user objects who can moderate this event
   participants: any[];           // Array of user objects who have joined this event
-  share_link?: string;           // Optional: shareable link for others to join
+  share_link?: string;           // Optional: shareable link code for others to join
+  share_url?: string;            // Optional: full shareable URL for others to join
   invite_link?: string;          // Optional: invite link for private events
   is_active: boolean;            // Whether the event is currently active
   is_public?: boolean;           // Whether the event is public or private

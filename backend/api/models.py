@@ -83,6 +83,46 @@ class Event(models.Model):
     def __str__(self):
         return self.name
     
+    def generate_share_link(self):
+        """Generate a unique, secure share link for this event"""
+        import secrets
+        import string
+        
+        if self.share_link:
+            return self.share_link
+            
+        # Generate a 12-character random string (alphanumeric)
+        characters = string.ascii_letters + string.digits
+        while True:
+            share_code = ''.join(secrets.choice(characters) for _ in range(12))
+            # Ensure uniqueness
+            if not Event.objects.filter(share_link=share_code).exists():
+                self.share_link = share_code
+                self.save()
+                return share_code
+    
+    def get_share_url(self, base_url='http://localhost:3000'):
+        """Get the full share URL for this event"""
+        if not self.share_link:
+            self.generate_share_link()
+        return f"{base_url}/join/{self.share_link}"
+    
+    def is_currently_active(self):
+        """Check if the event is currently active (not expired)"""
+        from django.utils import timezone
+        now = timezone.now()
+        
+        # Event is active if:
+        # 1. It has started (open_date is None or in the past)
+        # 2. It hasn't closed (close_date is None or in the future)
+        if self.open_date and self.open_date > now:
+            return False  # Event hasn't started yet
+        
+        if self.close_date and self.close_date < now:
+            return False  # Event has ended
+        
+        return True
+    
     def can_user_moderate(self, user):
         """Check if user can moderate this event"""
         return (user.is_system_admin() or 

@@ -55,6 +55,7 @@ class EventSerializer(serializers.ModelSerializer):
     participants = UserSerializer(many=True, read_only=True)
     created_by = UserSerializer(read_only=True)
     question_count = serializers.SerializerMethodField()
+    share_url = serializers.SerializerMethodField()  # Full URL for sharing
     
     # New permission fields
     user_role_in_event = serializers.SerializerMethodField()
@@ -74,15 +75,24 @@ class EventSerializer(serializers.ModelSerializer):
     class Meta:
         model = Event
         fields = ['id', 'name', 'open_date', 'close_date', 'created_by', 
-                 'moderators', 'participants', 'share_link', 'is_active',
+                 'moderators', 'participants', 'share_link', 'share_url', 'is_active',
                  'created_at', 'updated_at', 'question_count', 'is_public',
                  'invite_link', 'user_role_in_event', 'can_user_moderate',
                  'can_user_access', 'is_created_by_user', 'user_permissions',
                  'moderator_emails']
-        read_only_fields = ['id', 'created_at', 'updated_at', 'share_link', 'invite_link']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'share_link', 'share_url', 'invite_link']
     
     def get_question_count(self, obj):
         return obj.questions.count()
+    
+    def get_share_url(self, obj):
+        """Get the full share URL for this event"""
+        request = self.context.get('request')
+        if request:
+            # Get the base URL from the request
+            base_url = f"{request.scheme}://{request.get_host()}"
+            return obj.get_share_url(base_url)
+        return obj.get_share_url()  # Use default localhost
     
     def get_user_role_in_event(self, obj):
         """Get current user's role in this event"""
@@ -129,9 +139,12 @@ class EventSerializer(serializers.ModelSerializer):
         }
     
     def create(self, validated_data):
-        """Override create to handle moderator assignment"""
+        """Override create to handle moderator assignment and share link generation"""
         moderator_emails = validated_data.pop('moderator_emails', [])
         event = super().create(validated_data)
+        
+        # Generate share link automatically
+        event.generate_share_link()
         
         # Assign moderators if emails provided
         if moderator_emails:

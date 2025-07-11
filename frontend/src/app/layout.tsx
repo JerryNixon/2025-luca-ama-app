@@ -11,6 +11,8 @@ import { Inter } from 'next/font/google'
 import { AuthProvider } from '@/contexts/AuthContext'
 // Import the events context provider to manage events state globally
 import { EventsProvider } from '@/contexts/EventsContext'
+// Import the toast provider for global notifications
+import { ToastProvider } from '@/components/ui/Toast'
 
 // Configure the Inter font with Latin character subset for optimal loading
 // This ensures the font is preloaded and optimized for better performance
@@ -31,6 +33,8 @@ export const metadata: Metadata = {
  * - Global HTML structure (html and body tags)
  * - Font configuration using Google Fonts
  * - Authentication context for the entire app
+ * - Events context for state management
+ * - Toast notifications for user feedback
  * - Global CSS styling
  * 
  * @param children - React components that will be rendered inside this layout
@@ -60,10 +64,17 @@ export default function RootLayout({
           */}
           <EventsProvider>
             {/* 
-              children represents all the page content that will be rendered
-              This could be the home page, events page, login page, etc.
+              Wrap with ToastProvider to:
+              - Provide toast notifications to all components
+              - Handle success, error, and info messages globally
             */}
-            {children}
+            <ToastProvider>
+              {/* 
+                children represents all the page content that will be rendered
+                This could be the home page, events page, login page, etc.
+              */}
+              {children}
+            </ToastProvider>
           </EventsProvider>
         </AuthProvider>
       </body>
