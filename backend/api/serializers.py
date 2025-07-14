@@ -87,9 +87,34 @@ class EventSerializer(serializers.ModelSerializer):
     
     def get_share_url(self, obj):
         """Get the full share URL for this event"""
-        # Always point to frontend URL, not backend
-        frontend_url = 'http://localhost:3001'  # Frontend is on port 3001
-        return obj.get_share_url(frontend_url)
+        from django.conf import settings
+        import urllib.parse
+        
+        request = self.context.get('request')
+        
+        # Method 1: Use environment variable if set (most reliable)
+        if hasattr(settings, 'FRONTEND_URL') and settings.FRONTEND_URL:
+            return obj.get_share_url(settings.FRONTEND_URL)
+        
+        # Method 2: Try to detect from request headers
+        if request:
+            # Check Origin header first (for CORS requests from frontend)
+            origin = request.META.get('HTTP_ORIGIN')
+            if origin:
+                return obj.get_share_url(origin)
+            
+            # Check Referer header (when navigating from frontend pages)
+            referer = request.META.get('HTTP_REFERER')
+            if referer:
+                try:
+                    parsed = urllib.parse.urlparse(referer)
+                    frontend_url = f"{parsed.scheme}://{parsed.netloc}"
+                    return obj.get_share_url(frontend_url)
+                except:
+                    pass
+        
+        # Method 3: Fallback to default development port
+        return obj.get_share_url('http://localhost:3000')
     
     def get_user_role_in_event(self, obj):
         """Get current user's role in this event"""

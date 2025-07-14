@@ -30,6 +30,9 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-p9s89r&2dh=pjh__h7#1tj&ln9
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
+# Frontend URL Configuration - Auto-detect or use environment variable
+FRONTEND_URL = os.getenv('FRONTEND_URL', None)  # Will auto-detect if not set
+
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 
