@@ -1,0 +1,30 @@
+Database Performance Test Results
+================================
+Timestamp: 2025-07-15T16:59:04.032848
+Database Type: Docker SQL Server
+Database Name: ama_test2
+Host: localhost:1434
+
+Connection Latency (5 tests):
+  Test 1: 1.22 ms
+  Test 2: 1.37 ms
+  Test 3: 2.57 ms
+  Test 4: 1.41 ms
+  Test 5: 1.09 ms
+  Average: 1.53 ms
+
+Question Creation Latency (10 tests):
+  Test 1: 14.00 ms
+  Test 2: 18.64 ms
+  Test 3: 19.21 ms
+  Test 4: 12.84 ms
+  Test 5: 9.92 ms
+  Test 6: 9.04 ms
+  Test 7: 10.18 ms
+  Test 8: 9.23 ms
+  Test 9: 8.94 ms
+  Test 10: 12.13 ms
+  Average: 12.41 ms
+  Median: 11.16 ms
+  Min: 8.94 ms
+  Max: 19.21 ms

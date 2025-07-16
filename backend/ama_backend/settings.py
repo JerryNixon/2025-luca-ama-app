@@ -13,12 +13,20 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Replace lines 19-24 with this:
 
 # Load environment variables from .env file
 load_dotenv()
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+# Load local environment if it exists (override=True to override .env values)
+load_dotenv(BASE_DIR / '.env.local', override=True)
+
+# Check if we should use local Docker database
+USE_LOCAL_DB = os.getenv('USE_LOCAL_DB', 'false').lower() == 'true'
+
 
 
 # Quick-start development settings - unsuitable for production
@@ -83,49 +91,68 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'ama_backend.wsgi.application'
 
-
-# Microsoft Fabric SQL Database Configuration
-# This project uses Microsoft Fabric SQL Database exclusively
-print("🔗 Configuring Microsoft Fabric SQL Database connection...")
-
-# Get authentication method from environment
-auth_method = os.getenv('AUTH_METHOD', 'ActiveDirectoryIntegrated')
-print(f"📡 Using authentication method: {auth_method}")
-
-# Build connection string based on authentication method
-if auth_method == 'ActiveDirectoryInteractive':
-    # Opens a browser/dialog for Azure AD login (first time)
-    extra_params = 'Authentication=ActiveDirectoryInteractive;Encrypt=yes;TrustServerCertificate=no;ConnectTimeout=30;Command Timeout=60'
-elif auth_method == 'ActiveDirectoryDefault':
-    # Uses cached Azure AD credentials (after first login)
-    extra_params = 'Authentication=ActiveDirectoryDefault;Encrypt=yes;TrustServerCertificate=no;ConnectTimeout=30;Command Timeout=60'
-elif auth_method == 'ActiveDirectoryIntegrated':
-    # Uses Azure AD integrated authentication (not Windows integrated)
-    extra_params = 'Authentication=ActiveDirectoryIntegrated;Encrypt=yes;TrustServerCertificate=no;ConnectTimeout=30;Command Timeout=60'
-else:
-    # Fallback without specific authentication (let SQL Server handle it)
-    extra_params = 'Encrypt=yes;TrustServerCertificate=no;ConnectTimeout=30;Command Timeout=60'
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'mssql',
-        'NAME': os.getenv('DB_NAME'),
-        'HOST': os.getenv('DB_HOST'),
-        'PORT': os.getenv('DB_PORT', '1433'),
-        'USER': os.getenv('DB_USER'),  # Use the actual user from .env
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),  # Empty for Azure AD auth
-        'OPTIONS': {
-            'driver': 'ODBC Driver 17 for SQL Server',
-            'extra_params': extra_params
+# Replace lines 85-130 with this:
+# Database Configuration - Docker Local or Microsoft Fabric
+if USE_LOCAL_DB:
+    print("🐳 Using LOCAL Docker SQL Server Database")
+    
+    DATABASES = {
+        'default': {
+            'ENGINE': 'mssql',
+            'NAME': os.getenv('DB_NAME', 'ama_test2'),
+            'USER': os.getenv('DB_USER', 'sa'),
+            'PASSWORD': os.getenv('DB_PASSWORD'),
+            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT', '1433'),
+            'OPTIONS': {
+                'driver': 'ODBC Driver 17 for SQL Server',
+                'extra_params': 'TrustServerCertificate=yes;ConnectTimeout=10;Command Timeout=30;',
+            },
         },
     }
-}
+    
+    DATABASES['default']['CONN_MAX_AGE'] = 300  # 5 minutes for local
+    print(f"🐳 Docker Database: {DATABASES['default']['NAME']}")
+    print(f"🐳 Host: {DATABASES['default']['HOST']}:{DATABASES['default']['PORT']}")
 
-print(f"Database: {DATABASES['default']['NAME']}")
-print(f"Host: {DATABASES['default']['HOST']}")
-print(f"User: {DATABASES['default']['USER'] or 'Integrated Auth'}")
-print(f"Auth: {auth_method}")
+else:
+    print("☁️ Using Microsoft Fabric SQL Database")
+    
+    # Get authentication method from environment
+    auth_method = os.getenv('AUTH_METHOD', 'ActiveDirectoryIntegrated')
+    print(f"📡 Using authentication method: {auth_method}")
 
+    # Build connection string based on authentication method
+    if auth_method == 'ActiveDirectoryInteractive':
+        extra_params = 'Authentication=ActiveDirectoryInteractive;Encrypt=yes;TrustServerCertificate=no;ConnectTimeout=30;Command Timeout=60'
+    elif auth_method == 'ActiveDirectoryDefault':
+        extra_params = 'Authentication=ActiveDirectoryDefault;Encrypt=yes;TrustServerCertificate=no;ConnectTimeout=30;Command Timeout=60'
+    elif auth_method == 'ActiveDirectoryIntegrated':
+        extra_params = 'Authentication=ActiveDirectoryIntegrated;Encrypt=yes;TrustServerCertificate=no;ConnectTimeout=30;Command Timeout=60'
+    else:
+        extra_params = 'Encrypt=yes;TrustServerCertificate=no;ConnectTimeout=30;Command Timeout=60'
+
+    DATABASES = {
+        'default': {
+            'ENGINE': 'mssql',
+            'NAME': os.getenv('DB_NAME'),
+            'HOST': os.getenv('DB_HOST'),
+            'PORT': os.getenv('DB_PORT', '1433'),
+            'USER': os.getenv('DB_USER'),
+            'PASSWORD': os.getenv('DB_PASSWORD', ''),
+            'OPTIONS': {
+                'driver': 'ODBC Driver 17 for SQL Server',
+                'extra_params': extra_params
+            },
+        }
+    }
+
+    print(f"☁️ Database: {DATABASES['default']['NAME']}")
+    print(f"☁️ Host: {DATABASES['default']['HOST']}")
+    
+    # Performance optimizations for Microsoft Fabric SQL Database
+    print("Applying Fabric SQL performance optimizations...")
+    DATABASES['default']['CONN_MAX_AGE'] = 600  # 10 minutes
 
 # Performance optimizations for Microsoft Fabric SQL Database
 print("Applying Fabric SQL performance optimizations...")

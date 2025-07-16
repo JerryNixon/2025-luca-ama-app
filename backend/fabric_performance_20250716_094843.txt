@@ -1,0 +1,27 @@
+Microsoft Fabric Performance Test
+================================
+Timestamp: 2025-07-16T09:48:43.154232
+Database: ama_test2
+
+Connection Latency (5 tests):
+  Test 1: 46.74 ms
+  Test 2: 2.00 ms
+  Test 3: 2.06 ms
+  Test 4: 1.78 ms
+  Test 5: 1.99 ms
+  Average: 10.92 ms
+
+Question Creation (10 tests):
+  Test 1: 10.90 ms
+  Test 2: 15.66 ms
+  Test 3: 8.15 ms
+  Test 4: 12.92 ms
+  Test 5: 7.86 ms
+  Test 6: 11.21 ms
+  Test 7: 8.10 ms
+  Test 8: 8.07 ms
+  Test 9: 7.48 ms
+  Test 10: 8.62 ms
+  Average: 9.90 ms
+  Fastest: 7.48 ms
+  Slowest: 15.66 ms

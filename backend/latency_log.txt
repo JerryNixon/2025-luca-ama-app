@@ -1,0 +1,124 @@
+Django ORM Latency Benchmark - 2025-07-15T16:58:16.812826
+============================================================
+
+🚀 Django ORM Latency Benchmark Started
+📅 Timestamp: 2025-07-15T16:58:16.813445
+
+🔌 Testing Database Connection...
+✅ Database Connection Test: 54.78 ms
+📊 Database: ama_test2
+🔧 Version: Microsoft SQL Server 2019 (RTM-CU32-GDR) (KB5058722) - 15.0.4435.7 (X64) 
+	Jun  9 2025 18:36:12 
+	Co...
+
+📋 Setting up test data...
+✅ Create/Get Test User: 25.37 ms
+✅ Create/Get Test Event: 31.64 ms
+✅ Test data ready - User: a29302c0-1523-490b-af93-fe53db5345ea, Event: 6089bcd2-b2d2-4237-82bc-c43d4274503a
+
+🏗️ Testing Question Creation (10 iterations)...
+✅ Create Question 1: 13.54 ms
+✅ Create Question 2: 10.34 ms
+✅ Create Question 3: 10.46 ms
+✅ Create Question 4: 11.10 ms
+✅ Create Question 5: 8.31 ms
+✅ Create Question 6: 10.39 ms
+✅ Create Question 7: 9.48 ms
+✅ Create Question 8: 9.40 ms
+✅ Create Question 9: 9.37 ms
+✅ Create Question 10: 11.81 ms
+
+📊 CREATE OPERATION STATS:
+   Average: 10.42 ms
+   Median:  10.37 ms
+   Min:     8.31 ms
+   Max:     13.54 ms
+
+🔍 Testing Question Selection (5 iterations)...
+✅ Select All Questions 1: 5.47 ms
+✅ Select All Questions 2: 3.54 ms
+✅ Select All Questions 3: 3.19 ms
+✅ Select All Questions 4: 2.97 ms
+✅ Select All Questions 5: 2.35 ms
+   Select All Questions - Average: 3.50 ms
+✅ Select Questions by Event 1: 6.46 ms
+✅ Select Questions by Event 2: 4.60 ms
+✅ Select Questions by Event 3: 4.82 ms
+✅ Select Questions by Event 4: 3.36 ms
+✅ Select Questions by Event 5: 4.66 ms
+   Select Questions by Event - Average: 4.78 ms
+✅ Select Questions by Author 1: 5.74 ms
+✅ Select Questions by Author 2: 6.71 ms
+✅ Select Questions by Author 3: 7.04 ms
+✅ Select Questions by Author 4: 6.11 ms
+✅ Select Questions by Author 5: 6.23 ms
+   Select Questions by Author - Average: 6.37 ms
+✅ Count Questions 1: 4.47 ms
+✅ Count Questions 2: 2.74 ms
+✅ Count Questions 3: 2.27 ms
+✅ Count Questions 4: 2.56 ms
+✅ Count Questions 5: 2.16 ms
+   Count Questions - Average: 2.84 ms
+✅ Get Single Question by ID 1: 5.86 ms
+✅ Get Single Question by ID 2: 4.05 ms
+✅ Get Single Question by ID 3: 4.38 ms
+✅ Get Single Question by ID 4: 4.15 ms
+✅ Get Single Question by ID 5: 4.19 ms
+   Get Single Question by ID - Average: 4.53 ms
+
+✏️ Testing Question Updates (5 iterations)...
+✅ Update Question 1: 28.77 ms
+✅ Update Question 2: 7.76 ms
+✅ Update Question 3: 8.27 ms
+✅ Update Question 4: 8.71 ms
+✅ Update Question 5: 7.89 ms
+
+📊 UPDATE OPERATION STATS:
+   Average: 12.28 ms
+
+🗑️ Testing Question Deletion...
+✅ Delete Question 1: 22.62 ms
+✅ Delete Question 2: 17.89 ms
+✅ Delete Question 3: 19.90 ms
+✅ Delete Question 4: 17.89 ms
+✅ Delete Question 5: 25.07 ms
+✅ Bulk Delete 5 Questions: 30.50 ms
+
+📊 DELETE OPERATION STATS:
+   Average: 22.31 ms
+
+============================================================
+📊 BENCHMARK SUMMARY
+============================================================
+
+CREATE Operations:
+  Iterations: 10
+  Average:    10.42 ms
+  Median:     10.37 ms
+  Min:        8.31 ms
+  Max:        13.54 ms
+
+SELECT Operations:
+  Iterations: 25
+  Average:    4.40 ms
+  Min:        2.16 ms
+  Max:        7.04 ms
+
+UPDATE Operations:
+  Iterations: 5
+  Average:    12.28 ms
+  Min:        7.76 ms
+  Max:        28.77 ms
+
+DELETE Operations:
+  Iterations: 6
+  Average:    22.31 ms
+  Min:        17.89 ms
+  Max:        30.50 ms
+
+🎯 OVERALL PERFORMANCE:
+   Average across all operations: 8.90 ms
+   Total operations tested: 46
+
+🧹 Cleaning up test data...
+   Deleted 1 test events

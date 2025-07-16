@@ -1,0 +1,17 @@
+Quick Question Creation Test - 2025-07-16T09:43:25.067833
+============================================================
+Database: ama_test2
+Connection time: 62.61 ms
+User setup time: 27.53 ms
+Event setup time: 3.24 ms
+
+Question Creation Times:
+  Question 1: 13.61 ms
+  Question 2: 12.04 ms
+  Question 3: 10.04 ms
+  Question 4: 10.01 ms
+  Question 5: 9.40 ms
+
+Average: 11.02 ms
+Fastest: 9.40 ms
+Slowest: 13.61 ms
