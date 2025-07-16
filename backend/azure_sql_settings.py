@@ -66,14 +66,14 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'ama_backend.wsgi.application'
 
-# Azure SQL Database (Serverless) Configuration
+# Azure SQL Database (Serverless) Configuration with SQL Authentication
 DATABASES = {
     'default': {
         'ENGINE': 'mssql',
-        'NAME': os.environ.get('AZURE_SQL_DATABASE', 'luca-ama-serverless-db'),
-        'USER': os.environ.get('AZURE_SQL_USERNAME', 'lucaadmin'),
-        'PASSWORD': os.environ.get('AZURE_SQL_PASSWORD', ''),
-        'HOST': os.environ.get('AZURE_SQL_SERVER', 'luca-ama-serverless-srv.database.windows.net'),
+        'NAME': 'luca_azure_ama',
+        'USER': os.getenv('AZURE_SQL_USERNAME', 'CloudSA397da94b'),
+        'PASSWORD': os.getenv('AZURE_SQL_PASSWORD', 'your_password_here'),
+        'HOST': 'luca-azure-ama.database.windows.net',
         'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 18 for SQL Server',
@@ -81,8 +81,8 @@ DATABASES = {
                 'Encrypt=yes;'
                 'TrustServerCertificate=no;'
                 'Connection Timeout=30;'
-                'LoginTimeout=30;'
                 'MultipleActiveResultSets=False;'
+                'Persist Security Info=False;'
             ),
         },
     }
@@ -127,8 +127,7 @@ CORS_ALLOW_CREDENTIALS = True
 # REST Framework configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',
-        'api.authentication.CookieJWTAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',

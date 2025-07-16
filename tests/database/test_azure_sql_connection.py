@@ -16,7 +16,7 @@ import statistics
 from datetime import datetime
 
 # Add backend to path for Django imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'backend'))
 
 # Set Django settings for Azure SQL
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'azure_sql_settings')
