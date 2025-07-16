@@ -14,7 +14,6 @@ import { useEvents } from '@/contexts/EventsContext';
 import { Event } from '@/types';
 // Import reusable components
 import EventCard from '@/components/events/EventCard';
-import DebugAuth from '@/components/DebugAuth';
 // Import Next.js components for navigation
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
@@ -141,7 +140,6 @@ export default function EventsPage() {
   // Main page content - events grid with navigation
   return (
     <div className="min-h-screen bg-gray-50">
-      <DebugAuth />
       {/* Navigation Bar */}
       <nav className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
