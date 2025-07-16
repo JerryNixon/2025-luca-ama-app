@@ -1,0 +1,33 @@
+Comprehensive Microsoft Fabric Performance Test
+===============================================
+Timestamp: 2025-07-16T09:58:59.109617
+Database: SQL-ama-b4e17cae-52ca-4187-8fa3-1c76c5beb29a
+
+Connection Latency (5 tests):
+  Test 1: 29.86 ms
+  Test 2: 29.64 ms
+  Test 3: 30.02 ms
+  Test 4: 30.05 ms
+  Test 5: 30.71 ms
+  Average: 30.06 ms
+
+Question Creation (10 tests):
+  Question 1: 97.44 ms
+  Question 2: 93.67 ms
+  Question 3: 95.30 ms
+  Question 4: 93.24 ms
+  Question 5: 93.40 ms
+  Question 6: 99.10 ms
+  Question 7: 93.65 ms
+  Question 8: 94.28 ms
+  Question 9: 97.58 ms
+  Question 10: 101.49 ms
+  Average: 95.92 ms
+
+Performance Comparison Summary:
+Operation            Docker (ms)  Fabric (ms)  Difference      % Change
+---------------------------------------------------------------------------
+connection           1.53         30.06        +28.53          +1864.5%
+question_create      8.58         95.92        +87.34          +1017.9%
+queries              3.50         47.91        +44.41          +1268.8%
+updates              15.00        65.25        +50.25          +335.0 %

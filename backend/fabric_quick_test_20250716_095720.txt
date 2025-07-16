@@ -1,0 +1,22 @@
+Microsoft Fabric Question Creation Test - 2025-07-16T09:57:20.342741
+======================================================================
+Database: SQL-ama-b4e17cae-52ca-4187-8fa3-1c76c5beb29a
+Connection time: 154549.81 ms
+User setup time: 557.63 ms
+Event setup time: 328.20 ms
+
+Question Creation Times:
+  Question 1: 118.41 ms
+  Question 2: 99.01 ms
+  Question 3: 97.13 ms
+  Question 4: 107.63 ms
+  Question 5: 94.56 ms
+  Question 6: 98.04 ms
+  Question 7: 98.49 ms
+  Question 8: 99.14 ms
+  Question 9: 98.20 ms
+  Question 10: 101.33 ms
+
+Fabric Average: 101.19 ms
+Docker Average: 8.58 ms
+Difference: +92.61 ms (+1079.4%)
