@@ -1,0 +1,79 @@
+AZURE SQL DATABASE PERFORMANCE REPORT
+======================================
+Platform: Azure SQL Database (Serverless)
+Server: luca-azure-ama.database.windows.net
+Database: luca_azure_ama
+Connection: Encrypted SSL/TLS with Azure AD Auth
+Test Type: Django ORM Performance Benchmark
+
+DATABASE CONFIGURATION
+----------------------
+Version: Microsoft SQL Azure (RTM) - 12.0.2000.8
+Server Time: 2025-07-17 21:03:08.549330
+Timezone: (UTC) Coordinated Universal Time
+Database: luca_azure_ama
+Collation: SQL_Latin1_General_CP1_CI_AS
+
+CONNECTION PERFORMANCE
+---------------------
+Connection Latency (10 tests):
+   Average: 30.47 ms
+   Median:  30.14 ms
+   Range:   29.73 - 31.73 ms
+
+DATA OPERATIONS PERFORMANCE
+---------------------------
+User Operations:
+   Count users: 30.00 ms (1 total)
+   Find superuser: 31.02 ms
+   Get user details: 61.59 ms
+
+Event Operations:
+   Count events: 31.06 ms (0 total)
+   Active events: 33.36 ms (0 active)
+   Recent events: 43.21 ms (0 found)
+
+Question Operations:
+   Count questions: 35.58 ms (0 total)
+   Answered questions: 31.77 ms (0 answered)
+   Starred questions: 31.14 ms (0 starred)
+
+Vote Operations:
+   Count votes: 31.06 ms (0 total)
+
+COMPLEX QUERY PERFORMANCE
+-------------------------
+Questions with votes: 34.52 ms (0 questions)
+Event participation: 33.11 ms (0 events)
+User activity summary: 34.70 ms (0 active users)
+
+COMPREHENSIVE PERFORMANCE SUMMARY
+=================================
+Connection Performance:
+   Average Latency: 30.47 ms
+   Median Latency:  30.14 ms
+   Best Case:       29.73 ms
+   Worst Case:      31.73 ms
+
+Data Operation Performance:
+   Average Query Time: 35.98 ms
+   Median Query Time:  31.45 ms
+   Fastest Query:      30.00 ms
+   Slowest Query:      61.59 ms
+
+Complex Query Performance:
+   Average Complex Query: 34.11 ms
+   Fastest Complex Query: 33.11 ms
+   Slowest Complex Query: 34.70 ms
+
+Overall Performance Metrics:
+   Overall Average:    33.34 ms
+   Overall Median:     31.06 ms
+   Performance Range:  29.73 - 61.59 ms
+
+Performance Classification:
+   Connection Grade: Excellent
+   Avg Response Time: 30.47 ms
+
+AZURE SQL DATABASE PERFORMANCE ANALYSIS COMPLETE
+================================================

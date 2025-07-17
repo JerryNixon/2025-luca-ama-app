@@ -1,26 +1,25 @@
 """
-Azure SQL Database Serverless Configuration for Django
-
-This configuration file sets up Azure SQL Database (Serverless) connection
-for performance testing against Microsoft Fabric SQL.
-
-Branch: azure-sql-serverless-test
-Purpose: Compare latency between Fabric and native Azure SQL
+Azure SQL Database Settings for Django
+Fixed configuration for proper Azure AD authentication
 """
 
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv('.env.azure_sql')
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-your-secret-key-here'
+SECRET_KEY = 'django-insecure-azure-sql-test-key'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]']
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 INSTALLED_APPS = [
@@ -31,6 +30,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework_simplejwt',
     'corsheaders',
     'api',
 ]
@@ -66,18 +66,20 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'ama_backend.wsgi.application'
 
-# Azure SQL Database (Serverless) Configuration - Using Fixed Backend
+# Custom User Model
+AUTH_USER_MODEL = 'api.User'
+
+# Azure SQL Database Configuration
+# Using a connection string approach to avoid authentication conflicts
 DATABASES = {
     'default': {
-        'ENGINE': 'azure_mssql_backend',  # Our minimal fix
+        'ENGINE': 'mssql',
         'NAME': 'luca_azure_ama',
         'HOST': 'luca-azure-ama.database.windows.net',
-        'PORT': '1433',
-        'USER': '',  # Empty for Entra auth
-        'PASSWORD': '',  # Empty for Entra auth
+        'PORT': 1433,
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
-            'extra_params': 'Authentication=ActiveDirectoryInteractive;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30',
+            'extra_params': 'Authentication=ActiveDirectoryInteractive;Encrypt=yes;TrustServerCertificate=no;ConnectTimeout=30;CommandTimeout=60'
         },
     }
 }
@@ -118,7 +120,7 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
-# REST Framework configuration
+# Django REST Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -126,36 +128,47 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ],
 }
 
-# Custom user model
-AUTH_USER_MODEL = 'api.User'
+# JWT Configuration
+from datetime import timedelta
 
-# Database Performance Monitoring
-# Enable SQL query logging for performance analysis
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+}
+
+# Performance optimizations
+CONN_MAX_AGE = 600  # 10 minutes
+
+# Logging configuration for SQL debugging
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-        },
         'file': {
+            'level': 'DEBUG',
             'class': 'logging.FileHandler',
             'filename': 'azure_sql_queries.log',
         },
     },
     'loggers': {
         'django.db.backends': {
-            'handlers': ['console', 'file'],
+            'handlers': ['file'],
             'level': 'DEBUG',
             'propagate': False,
         },
     },
 }
 
-print("🔵 Using Azure SQL Database (Serverless) Configuration")
-print("📍 Database: Azure SQL Database")
-print("🏢 Server: Azure SQL (Serverless)")
-print("⚡ Performance: Testing against Fabric SQL")
-print("🌍 Connection: Encrypted (SSL/TLS)")
+# Print configuration info
+print(f"🔵 Using Azure SQL Database Configuration")
+print(f"📍 Database: Azure SQL Database (Serverless)")
+print(f"🏢 Server: {DATABASES['default']['HOST']}")
+print(f"⚡ Performance: Testing against Fabric SQL")
+print(f"🌍 Connection: Encrypted (SSL/TLS)")
+print(f"🔐 Authentication: Azure AD Default")
