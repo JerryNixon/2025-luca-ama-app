@@ -133,6 +133,21 @@ export default function DashboardPage() {
                 </Link>
               )}
 
+              {/* Real-time Test Card - Available to all users */}
+              <Link href="/realtime-test" className="group">
+                <div className="card hover:shadow-lg transition-shadow duration-200 text-left border-2 border-yellow-300 bg-yellow-50">
+                  <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mb-4">
+                    <span className="text-2xl">🔄</span>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-yellow-600 transition-colors">
+                    🧪 Real-time Test
+                  </h3>
+                  <p className="text-gray-600">
+                    Test Supabase WebSocket subscriptions. Questions appear instantly without refreshing!
+                  </p>
+                </div>
+              </Link>
+
               {/* Profile Card - Available to all authenticated users */}
               <Link href="/profile" className="group">
                 <div className="card hover:shadow-lg transition-shadow duration-200 text-left">

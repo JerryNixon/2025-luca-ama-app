@@ -1,0 +1,297 @@
+// Fabric KQL Queries for AMA Real-time Analytics
+// These queries would run in your Microsoft Fabric KQL Database
+// to analyze AMA data and send insights via Event Hub to your WebSocket clients
+
+// Query 1: Real-time Engagement Metrics
+// This runs every 30 seconds to provide live engagement data
+.create-or-alter function AMAEngagementMetrics() {
+    let timeWindow = 30s;
+    let currentTime = now();
+    
+    // Active participants in last 5 minutes
+    let activeParticipants = 
+        AMAQuestions
+        | where Timestamp > currentTime - 5m
+        | distinct AuthorId
+        | count;
+    
+    // Questions per minute
+    let questionsPerMinute = 
+        AMAQuestions
+        | where Timestamp > currentTime - 1m
+        | count;
+    
+    // Average engagement score (upvotes, comments, etc.)
+    let avgEngagement = 
+        AMAQuestions
+        | where Timestamp > currentTime - 5m
+        | extend EngagementScore = (Upvotes * 2 + Comments * 1.5 + (IsStarred * 10) + (IsStaged * 20))
+        | summarize AvgScore = avg(EngagementScore);
+    
+    // Sentiment analysis of recent questions
+    let sentiment = 
+        AMAQuestions
+        | where Timestamp > currentTime - 5m
+        | where isnotempty(Text)
+        | extend SentimentScore = extract_sentiment(Text) // Fabric ML function
+        | summarize AvgSentiment = avg(SentimentScore);
+    
+    // Top topics using text analytics
+    let topTopics = 
+        AMAQuestions
+        | where Timestamp > currentTime - 10m
+        | where isnotempty(Text)
+        | extend Topics = extract_topics(Text, 3) // Extract top 3 topics per question
+        | mv-expand Topics
+        | summarize TopicCount = count() by tostring(Topics)
+        | top 5 by TopicCount
+        | project Topics;
+    
+    // Package results
+    print 
+        EventType = "QuestionAnalytics",
+        EventId = "current",
+        Timestamp = currentTime,
+        ActiveUsers = toscalar(activeParticipants),
+        QuestionsPerMinute = toscalar(questionsPerMinute),
+        EngagementScore = toscalar(avgEngagement),
+        SentimentAvg = toscalar(sentiment),
+        TopTopics = toscalar(topTopics)
+}
+
+// Query 2: Question Trend Analysis
+// Analyzes question patterns over time windows
+.create-or-alter function AMAQuestionTrends() {
+    let lookbackTime = 2h;
+    let currentTime = now();
+    
+    AMAQuestions
+    | where Timestamp > currentTime - lookbackTime
+    | extend TimeWindow = bin(Timestamp, 15m) // 15-minute windows
+    | summarize 
+        QuestionCount = count(),
+        AvgUpvotes = avg(Upvotes),
+        TopKeywords = make_list(extract_keywords(Text, 3), 10)
+        by TimeWindow
+    | extend TimeWindowStr = format_datetime(TimeWindow, "HH:mm")
+    | project 
+        EventType = "RealTimeEngagement",
+        TimeWindow = TimeWindowStr,
+        QuestionCount,
+        AvgUpvotes,
+        TopKeywords
+    | order by TimeWindow desc
+}
+
+// Query 3: Moderator Intelligence
+// Provides insights for moderators
+.create-or-alter function AMAModeratorInsights() {
+    let currentTime = now();
+    let activeWindow = 10m;
+    
+    // Detect emerging topics (topics with rapid growth)
+    let emergingTopics = 
+        AMAQuestions
+        | where Timestamp > currentTime - 20m
+        | extend TimeSegment = iff(Timestamp > currentTime - activeWindow, "Recent", "Earlier")
+        | where isnotempty(Text)
+        | extend Topics = extract_topics(Text, 5)
+        | mv-expand Topics
+        | summarize Count = count() by tostring(Topics), TimeSegment
+        | evaluate pivot(TimeSegment, sum(Count), "Recent", "Earlier")
+        | extend GrowthRate = (Recent - Earlier) * 100.0 / max_of(Earlier, 1)
+        | where GrowthRate > 50 // Topics growing >50%
+        | project Topic = Topics, GrowthRate
+        | top 5 by GrowthRate;
+    
+    // User engagement segments
+    let userSegments = 
+        AMAQuestions
+        | where Timestamp > currentTime - 30m
+        | summarize 
+            QuestionCount = count(),
+            TotalUpvotes = sum(Upvotes),
+            LastActivity = max(Timestamp)
+            by AuthorId
+        | extend UserType = case(
+            QuestionCount >= 3, "Very Active",
+            QuestionCount >= 2, "Active", 
+            TotalUpvotes >= 10, "Engaged Viewer",
+            "Casual Viewer"
+        )
+        | summarize UserCount = count() by UserType;
+    
+    // Peak activity detection
+    let peakActivity = 
+        AMAQuestions
+        | where Timestamp > currentTime - 1h
+        | summarize ActivityScore = count() by bin(Timestamp, 5m)
+        | top 1 by ActivityScore
+        | extend PeakTime = format_datetime(Timestamp, "HH:mm")
+        | project PeakTime;
+    
+    // Moderator alerts
+    let alerts = 
+        AMAQuestions
+        | where Timestamp > currentTime - 5m
+        | extend Alert = case(
+            Upvotes > 20, strcat("🔥 Hot question: ", substring(Text, 0, 50), "..."),
+            extract_sentiment(Text) < 0.2, strcat("⚠️ Negative sentiment: ", substring(Text, 0, 50), "..."),
+            strlen(Text) > 500, strcat("📝 Long question: ", substring(Text, 0, 50), "..."),
+            ""
+        )
+        | where isnotempty(Alert)
+        | project Alert;
+    
+    print 
+        EventType = "ModeratorIntelligence",
+        Timestamp = currentTime,
+        EmergingTopics = toscalar(emergingTopics),
+        UserSegments = toscalar(userSegments),
+        PeakActivity = toscalar(peakActivity),
+        ModeratorAlerts = toscalar(alerts)
+}
+
+// Query 4: Custom Analysis Handler
+// Handles custom analysis requests from the AMA app
+.create-or-alter function ProcessCustomAnalysisRequest(requestType: string, eventId: string, timeWindow: string = "15m") {
+    let lookbackTime = totimespan(timeWindow);
+    let currentTime = now();
+    
+    let baseData = 
+        AMAQuestions 
+        | where EventId == eventId
+        | where Timestamp > currentTime - lookbackTime;
+    
+    // Switch based on analysis type
+    let result = case(
+        requestType == "engagement", 
+        baseData 
+        | extend EngagementScore = (Upvotes * 2 + Comments * 1.5)
+        | summarize 
+            AvgEngagement = avg(EngagementScore),
+            TopEngaged = max(EngagementScore),
+            EngagementTrend = make_list(EngagementScore)
+        | project AnalysisType = "engagement", Results = pack_all(),
+        
+        requestType == "topics",
+        baseData
+        | extend Topics = extract_topics(Text, 5)
+        | mv-expand Topics
+        | summarize TopicCount = count() by tostring(Topics)
+        | top 10 by TopicCount
+        | project AnalysisType = "topics", Results = pack_all(),
+        
+        requestType == "sentiment",
+        baseData
+        | extend SentimentScore = extract_sentiment(Text)
+        | summarize 
+            OverallSentiment = avg(SentimentScore),
+            PositiveCount = countif(SentimentScore > 0.6),
+            NegativeCount = countif(SentimentScore < 0.4),
+            SentimentDistribution = make_list(SentimentScore)
+        | project AnalysisType = "sentiment", Results = pack_all(),
+        
+        // Default case
+        baseData
+        | summarize Count = count()
+        | project AnalysisType = "default", Results = pack_all()
+    );
+    
+    result
+    | extend 
+        RequestType = requestType,
+        EventId = eventId,
+        TimeWindow = timeWindow,
+        ProcessedAt = currentTime
+}
+
+// Continuous Export Configuration
+// These set up automatic data streaming to Event Hub
+
+// Export real-time engagement metrics every 30 seconds
+.create-or-alter continuous-export AMAEngagementExport
+over (AMAQuestions)
+to table EventHubExport (EventType: string, Data: dynamic)
+with (intervalBetweenRuns=30s, forcedLatency=10s)
+<| AMAEngagementMetrics() | project EventType, Data=pack_all()
+
+// Export question trends every 5 minutes
+.create-or-alter continuous-export AMAQuestionTrendsExport
+over (AMAQuestions)  
+to table EventHubExport (EventType: string, Data: dynamic)
+with (intervalBetweenRuns=5m, forcedLatency=30s)
+<| AMAQuestionTrends() | project EventType, Data=pack_all()
+
+// Export moderator insights every 2 minutes
+.create-or-alter continuous-export AMAModeratorExport
+over (AMAQuestions)
+to table EventHubExport (EventType: string, Data: dynamic)  
+with (intervalBetweenRuns=2m, forcedLatency=15s)
+<| AMAModeratorInsights() | project EventType, Data=pack_all()
+
+// Advanced Analytics Queries
+
+// Query 5: Predictive Engagement Analysis
+.create-or-alter function PredictEngagementTrends() {
+    // Predict future engagement based on historical patterns
+    AMAQuestions
+    | where Timestamp > ago(7d)
+    | extend HourOfDay = hourofday(Timestamp)
+    | extend DayOfWeek = dayofweek(Timestamp) 
+    | summarize 
+        AvgQuestionsPerHour = avg(count()),
+        EngagementPattern = make_list(count())
+        by HourOfDay, DayOfWeek
+    | extend PredictedEngagement = series_forecast(EngagementPattern, 6) // Forecast next 6 hours
+    | project HourOfDay, DayOfWeek, AvgQuestionsPerHour, PredictedEngagement
+}
+
+// Query 6: AI-Powered Question Classification
+.create-or-alter function ClassifyQuestions() {
+    AMAQuestions
+    | where Timestamp > ago(1h)
+    | extend 
+        QuestionCategory = case(
+            Text contains "how" or Text contains "why", "Explanatory",
+            Text contains "when" or Text contains "what", "Factual", 
+            Text contains "should" or Text contains "would", "Opinion",
+            Text contains "can you" or Text contains "could you", "Request",
+            "General"
+        ),
+        ComplexityScore = strlen(Text) / 50.0, // Simple complexity measure
+        UrgencyScore = case(
+            Text contains "urgent" or Text contains "important", 5,
+            Text contains "quick" or Text contains "fast", 3,
+            1
+        )
+    | summarize 
+        CategoryCount = count(),
+        AvgComplexity = avg(ComplexityScore),
+        AvgUrgency = avg(UrgencyScore)
+        by QuestionCategory
+    | project 
+        EventType = "QuestionClassification",
+        Categories = pack_all()
+}
+
+// Sample data structure for testing
+// .create table AMAQuestions (
+//     Id: string,
+//     EventId: string, 
+//     AuthorId: string,
+//     Text: string,
+//     Upvotes: int,
+//     Comments: int,
+//     IsStarred: bool,
+//     IsStaged: bool,
+//     IsAnswered: bool,
+//     Timestamp: datetime,
+//     CreatedAt: datetime
+// )
+
+// Usage Examples:
+// Run engagement metrics: AMAEngagementMetrics()
+// Run trend analysis: AMAQuestionTrends()  
+// Run custom analysis: ProcessCustomAnalysisRequest("engagement", "event-123", "30m")
+// Get moderator insights: AMAModeratorInsights()
