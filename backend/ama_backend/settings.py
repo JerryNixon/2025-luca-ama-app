@@ -14,11 +14,23 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent
+
 # Load environment variables from .env file
 load_dotenv()
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+# Load local environment if it exists (override=True to override .env values)
+load_dotenv(BASE_DIR / '.env.local', override=True)
+
+# Check if we should use local Docker database
+USE_LOCAL_DB = os.getenv('USE_LOCAL_DB', 'false').lower() == 'true'
+
+print("🔗 Configuring database connection...")
+if USE_LOCAL_DB:
+    print("🐳 Using LOCAL Docker SQL Server Database")
+else:
+    print("🔗 Configuring Microsoft Fabric SQL Database connection...")
 
 
 # Quick-start development settings - unsuitable for production
@@ -93,7 +105,13 @@ auth_method = os.getenv('AUTH_METHOD', 'ActiveDirectoryIntegrated')
 print(f"📡 Using authentication method: {auth_method}")
 
 # Build connection string based on authentication method
-if auth_method == 'ActiveDirectoryInteractive':
+if auth_method == 'SqlPassword':
+    # SQL Server Authentication with username and password
+    extra_params = 'Encrypt=yes;TrustServerCertificate=no;ConnectTimeout=30;Command Timeout=60'
+elif auth_method == 'ActiveDirectoryPassword':
+    # Azure AD with username and password (no interactive prompt)
+    extra_params = 'Authentication=ActiveDirectoryPassword;Encrypt=yes;TrustServerCertificate=no;ConnectTimeout=30;Command Timeout=60'
+elif auth_method == 'ActiveDirectoryInteractive':
     # Opens a browser/dialog for Azure AD login (first time)
     extra_params = 'Authentication=ActiveDirectoryInteractive;Encrypt=yes;TrustServerCertificate=no;ConnectTimeout=30;Command Timeout=60'
 elif auth_method == 'ActiveDirectoryDefault':
