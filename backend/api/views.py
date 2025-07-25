@@ -4,10 +4,13 @@ from django.shortcuts import render
 from rest_framework import generics, permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.shortcuts import get_object_or_404
 from django.db.models import Count, Q
+from django.conf import settings
+from django.utils import timezone
 import secrets
 import string
 
@@ -16,7 +19,13 @@ from .serializers import (
     UserSerializer, LoginSerializer, EventSerializer, 
     QuestionSerializer, VoteSerializer
 )
+# Add this import with your other imports at the top of views.py
+from .fabric_ai_service import fabric_ai_service
+import json  # For handling JSON data in AI operations
+import logging  # For AI operation logging
 
+# Set up logging for this module
+logger = logging.getLogger(__name__)
 # ============================================================================
 # AUTHENTICATION VIEWS
 # ============================================================================
@@ -369,12 +378,62 @@ class QuestionListCreateView(generics.ListCreateAPIView):
         return queryset
     
     def perform_create(self, serializer):
+        """
+        Create a new question with automatic Fabric AI processing
+        
+        This enhanced version automatically processes new questions with Fabric AI
+        to generate embeddings, summaries, and metadata for immediate use.
+        """
+        # Get the event from the URL parameter
         event_id = self.kwargs['event_id']
         event = get_object_or_404(Event, id=event_id)
-        serializer.save(
+        
+        # Verify user has permission to ask questions in this event
+        if not event.can_user_access(self.request.user):
+            raise PermissionDenied('You do not have permission to ask questions in this event')
+        
+        # Get the question text for AI processing
+        question_text = serializer.validated_data['text']
+        
+        # Log the question creation
+        logger.info(f"Creating new question in event {event_id} with Fabric AI processing")
+        
+        # Save the question first to get a database ID
+        question = serializer.save(
             author=self.request.user,
             event=event
         )
+        
+        # Record when AI processing starts
+        question.ai_processing_started_at = timezone.now()
+        question.save()
+        
+        # Process the question with Fabric AI in the background
+        try:
+            logger.info(f"Starting Fabric AI processing for new question {question.id}")
+            
+            # Run comprehensive Fabric AI processing
+            ai_results = fabric_ai_service.process_question_with_fabric_ai(
+                str(question.id),
+                question_text
+            )
+            
+            # Record successful completion
+            question.ai_processing_completed_at = timezone.now()
+            question.save()
+            
+            logger.info(f"✅ Fabric AI processing completed for question {question.id}")
+            
+        except Exception as e:
+            # Log AI processing errors but don't fail the question creation
+            logger.error(f"❌ Fabric AI processing failed for question {question.id}: {e}")
+            
+            # Record the error for debugging
+            question.ai_processing_error = str(e)
+            question.ai_processing_completed_at = timezone.now()
+            question.save()
+        
+        return question
 
 class QuestionDetailView(generics.RetrieveUpdateDestroyAPIView):
     """Get, update, or delete specific question"""
@@ -678,3 +737,305 @@ def check_user_exists(request):
         'success': True,
         'data': {'exists': exists}
     })
+
+
+# =============================================================================
+# FABRIC AI ENDPOINTS - Primary AI functionality using Microsoft Fabric
+# =============================================================================
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def check_similar_questions_fabric(request, event_id):
+    """
+    Real-time similarity checking using Fabric's native vector functions
+    
+    This endpoint showcases Fabric's AI capabilities for similarity detection.
+    It's called by the frontend while users are typing to show similar questions
+    before they submit, reducing duplicate questions during AMA sessions.
+    
+    Args:
+        request: HTTP request containing question_text in POST data
+        event_id: UUID of the event to search within
+        
+    Returns:
+        JSON response with similar questions and metadata about Fabric features used
+    """
+    try:
+        # Get the event and verify user has access
+        event = get_object_or_404(Event, id=event_id)
+        
+        # Check if the user can access this event
+        # This prevents unauthorized similarity checking across private events
+        if not event.can_user_access(request.user):
+            return Response({
+                'success': False,
+                'message': 'Access denied to this event'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Extract the question text from the request
+        question_text = request.data.get('question_text', '').strip()
+        
+        # Don't process very short text to avoid noise
+        # Short text doesn't provide enough context for meaningful similarity
+        if len(question_text) < 10:
+            return Response({
+                'success': True,
+                'data': {
+                    'similar_questions': [],
+                    'method': 'fabric_ai',
+                    'reason': 'Text too short for similarity analysis'
+                }
+            })
+        
+        # Log the similarity check request for monitoring
+        logger.info(f"Fabric AI similarity check requested for event {event_id}")
+        logger.debug(f"Question text: {question_text[:100]}...")  # Log first 100 chars
+        
+        # Use Fabric AI service to find similar questions
+        # This leverages Fabric's VECTOR_DISTANCE function for optimal performance
+        similar_questions = fabric_ai_service.find_similar_questions_fabric(
+            question_text,           # Text to find similarities for
+            str(event_id),          # Event to search within
+            limit=5                 # Maximum number of results to return
+        )
+        
+        # Log the results for debugging and monitoring
+        logger.info(f"Fabric AI found {len(similar_questions)} similar questions")
+        
+        # Return the results with metadata about Fabric features used
+        return Response({
+            'success': True,
+            'data': {
+                'similar_questions': similar_questions,
+                'method': 'fabric_ai',
+                'threshold_used': fabric_ai_service.similarity_threshold,
+                'fabric_features_used': [
+                    'AI.EMBEDDING() function for vector generation',
+                    'VECTOR_DISTANCE() function for similarity calculation',
+                    'Native vector indexing for performance',
+                    'Semantic clustering integration'
+                ],
+                'performance_info': {
+                    'vector_dimension': fabric_ai_service.fabric_config.get('vector_dimension', 1536),
+                    'cache_enabled': fabric_ai_service.enable_caching,
+                    'processing_timeout': fabric_ai_service.operation_timeout
+                }
+            },
+            'message': f'Found {len(similar_questions)} similar questions using Fabric AI'
+        })
+        
+    except Event.DoesNotExist:
+        # Handle case where event doesn't exist
+        logger.warning(f"Similarity check requested for non-existent event: {event_id}")
+        return Response({
+            'success': False,
+            'message': 'Event not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+        
+    except Exception as e:
+        # Handle any other errors gracefully
+        logger.error(f"Fabric similarity check failed for event {event_id}: {e}")
+        return Response({
+            'success': False,
+            'message': 'Failed to check for similar questions using Fabric AI',
+            'error_details': str(e) if settings.DEBUG else None  # Only show details in debug mode
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def cluster_questions_fabric(request, event_id):
+    """
+    Use Fabric AI to automatically cluster related questions
+    
+    This demonstrates Fabric's advanced AI clustering capabilities.
+    It groups questions by semantic similarity and topic, helping moderators
+    organize large numbers of questions efficiently.
+    
+    Args:
+        request: HTTP request (may contain clustering parameters)
+        event_id: UUID of the event to cluster questions for
+        
+    Returns:
+        JSON response with clustering results and statistics
+    """
+    try:
+        # Get the event and verify user has moderator permissions
+        event = get_object_or_404(Event, id=event_id)
+        
+        # Only moderators can perform clustering operations
+        # This is a powerful feature that reorganizes questions
+        if not event.can_user_moderate(request.user):
+            return Response({
+                'success': False,
+                'message': 'Moderator permissions required for question clustering'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Log the clustering request
+        logger.info(f"Fabric AI clustering requested for event {event_id} by user {request.user.email}")
+        
+        # Use Fabric's AI clustering service
+        # This leverages Fabric's AI.CLUSTER function for semantic grouping
+        clusters = fabric_ai_service.cluster_questions_fabric(str(event_id))
+        
+        # Apply the clustering results to the database
+        # Group questions based on Fabric AI's clustering analysis
+        cluster_count = 0
+        questions_grouped = 0
+        
+        for cluster_name, question_ids in clusters.items():
+            # Only create groups with multiple questions
+            # Single-question clusters aren't useful for organization
+            if len(question_ids) > 1:
+                # Use the first question as the parent (primary question)
+                parent_id = question_ids[0]
+                child_ids = question_ids[1:]  # Remaining questions become children
+                
+                # Update the database to group these questions
+                # This uses Django's ORM for safe database operations
+                grouped_count = Question.objects.filter(
+                    id__in=child_ids
+                ).update(
+                    parent_question_id=parent_id  # Set the parent relationship
+                )
+                
+                cluster_count += 1
+                questions_grouped += grouped_count
+                
+                # Log the clustering action for audit trail
+                logger.info(f"Created cluster '{cluster_name}' with {len(question_ids)} questions")
+        
+        # Log the overall clustering results
+        logger.info(f"Fabric AI clustering completed: {cluster_count} clusters, {questions_grouped} questions grouped")
+        
+        return Response({
+            'success': True,
+            'data': {
+                'clusters_created': cluster_count,
+                'total_clusters_found': len(clusters),
+                'questions_grouped': questions_grouped,
+                'clustering_method': 'fabric_ai',
+                'fabric_features_used': [
+                    'AI.CLUSTER() function for semantic grouping',
+                    'Natural language understanding',
+                    'Topic similarity analysis',
+                    'Semantic relationship detection'
+                ],
+                'cluster_details': {
+                    cluster_name: {
+                        'question_count': len(question_ids),
+                        'primary_question_id': question_ids[0] if question_ids else None
+                    }
+                    for cluster_name, question_ids in clusters.items()
+                }
+            },
+            'message': f'Fabric AI successfully created {cluster_count} question clusters'
+        })
+        
+    except Event.DoesNotExist:
+        logger.warning(f"Clustering requested for non-existent event: {event_id}")
+        return Response({
+            'success': False,
+            'message': 'Event not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+        
+    except Exception as e:
+        logger.error(f"Fabric clustering failed for event {event_id}: {e}")
+        return Response({
+            'success': False,
+            'message': 'Failed to cluster questions using Fabric AI',
+            'error_details': str(e) if settings.DEBUG else None
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def process_question_ai_fabric(request, question_id):
+    """
+    Process a specific question with comprehensive Fabric AI analysis
+    
+    This endpoint runs the full Fabric AI pipeline on a question:
+    - Generates embeddings for similarity matching
+    - Creates AI summary for moderator reference
+    - Performs sentiment analysis
+    - Extracts topics and categories
+    - Updates all AI metadata in the database
+    
+    Args:
+        request: HTTP request (may contain processing options)
+        question_id: UUID of the question to process
+        
+    Returns:
+        JSON response with detailed AI processing results
+    """
+    try:
+        # Get the question and verify permissions
+        question = get_object_or_404(Question, id=question_id)
+        event = question.event
+        
+        # Check if user can moderate this event
+        # AI processing is a moderator/admin function
+        if not event.can_user_moderate(request.user):
+            return Response({
+                'success': False,
+                'message': 'Moderator permissions required for AI processing'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Log the AI processing request
+        logger.info(f"Fabric AI processing requested for question {question_id} by user {request.user.email}")
+        
+        # Run comprehensive Fabric AI processing
+        # This calls our main AI processing pipeline
+        ai_results = fabric_ai_service.process_question_with_fabric_ai(
+            str(question.id),
+            question.text
+        )
+        
+        # Reload the question to get updated AI data
+        question.refresh_from_db()
+        
+        # Log the processing results for monitoring
+        logger.info(f"Fabric AI processing completed for question {question_id}")
+        logger.info(f"  - Embedding generated: {ai_results.get('embedding_generated', False)}")
+        logger.info(f"  - Summary generated: {ai_results.get('summary_generated', False)}")
+        logger.info(f"  - Similarity indexed: {ai_results.get('similarity_indexed', False)}")
+        logger.info(f"  - Semantic analysis: {ai_results.get('semantic_analysis') is not None}")
+        
+        return Response({
+            'success': True,
+            'data': {
+                'question_id': str(question.id),
+                'ai_processing_results': ai_results,
+                'fabric_features_used': [
+                    'AI.EMBEDDING() for vector generation',
+                    'AI.SUMMARIZE() for question summarization',
+                    'AI.ANALYZE_SENTIMENT() for sentiment analysis',
+                    'AI.EXTRACT_TOPICS() for topic identification',
+                    'AI.CATEGORIZE() for automatic categorization'
+                ],
+                'updated_question_data': {
+                    'ai_summary': question.ai_summary,
+                    'ai_sentiment': question.ai_sentiment,
+                    'ai_category': question.ai_category,
+                    'ai_confidence_score': question.ai_confidence_score,
+                    'fabric_semantic_cluster': question.fabric_semantic_cluster,
+                    'fabric_ai_processed': question.fabric_ai_processed,
+                    'processing_duration': str(question.get_ai_processing_duration()) if question.get_ai_processing_duration() else None
+                }
+            },
+            'message': 'Fabric AI processing completed successfully'
+        })
+        
+    except Question.DoesNotExist:
+        logger.warning(f"AI processing requested for non-existent question: {question_id}")
+        return Response({
+            'success': False,
+            'message': 'Question not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+        
+    except Exception as e:
+        logger.error(f"Fabric AI processing failed for question {question_id}: {e}")
+        return Response({
+            'success': False,
+            'message': 'Failed to process question with Fabric AI',
+            'error_details': str(e) if settings.DEBUG else None
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+

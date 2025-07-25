@@ -94,6 +94,41 @@ export interface Question {
 }
 
 // ==============================================================================
+// AI-POWERED FEATURES TYPES - Fabric AI integration
+// ==============================================================================
+
+// Similar Question interface - represents a question found by AI similarity detection
+// This extends the basic Question interface with AI-specific metadata
+export interface SimilarQuestion {
+  id: string;                      // Unique identifier for the question
+  text: string;                    // The actual question content
+  author_id?: string;              // ID of who asked this question (may be anonymous)
+  created_at: string;              // When this question was asked (ISO string)
+  upvote_count: number;            // How many people upvoted this question
+  similarity_score: number;        // AI confidence score (0.0 to 1.0, higher = more similar)
+  confidence_score?: number;       // AI analysis confidence (0.0 to 1.0)
+  ai_sentiment?: 'positive' | 'negative' | 'neutral' | 'mixed';  // AI-detected sentiment
+  ai_category?: string;            // AI-detected category/topic
+  semantic_cluster?: string;       // AI-assigned cluster for grouping
+  processing_method: 'fabric_ai' | 'fallback';  // Which AI method was used
+  fabric_features_used?: string[]; // List of Fabric AI features that were used
+}
+
+// Response from the similarity detection API endpoint
+export interface SimilarQuestionsResponse {
+  similar_questions: SimilarQuestion[];  // Array of similar questions found
+  method: 'fabric_ai' | 'fallback';     // Which AI method was used
+  threshold_used: number;               // Similarity threshold that was applied
+  fabric_features_used?: string[];     // List of Fabric AI features used
+  performance_info?: {                 // Performance metadata from Fabric AI
+    vector_dimension: number;
+    cache_enabled: boolean;
+    processing_timeout: number;
+  };
+  message: string;                     // Human-readable result message
+}
+
+// ==============================================================================
 // VOTING SYSTEM TYPES - Tracking who voted on what
 // ==============================================================================
 

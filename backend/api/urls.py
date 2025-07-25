@@ -32,4 +32,14 @@ urlpatterns = [
     path('questions/<uuid:question_id>/upvote/', views.upvote_question_view, name='upvote-question'),
     path('questions/<uuid:question_id>/star/', views.star_question_view, name='star-question'),
     path('questions/<uuid:question_id>/stage/', views.stage_question_view, name='stage-question'),
+    
+    # Fabric AI Endpoints - Microsoft Fabric AI Integration
+    # Real-time similarity checking for duplicate prevention
+    path('events/<uuid:event_id>/ai/similar-questions/', views.check_similar_questions_fabric, name='fabric-similar-questions'),
+    
+    # AI-powered question clustering for moderators
+    path('events/<uuid:event_id>/ai/cluster-questions/', views.cluster_questions_fabric, name='fabric-cluster-questions'),
+    
+    # Comprehensive AI processing for individual questions
+    path('questions/<uuid:question_id>/ai/process/', views.process_question_ai_fabric, name='fabric-process-question'),
 ]

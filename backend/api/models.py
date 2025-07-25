@@ -208,12 +208,190 @@ class Question(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
-    class Meta:
-        ordering = ['-upvotes', '-created_at']
+    # ==========================================================================
+    # FABRIC AI FIELDS - Native Integration with Microsoft Fabric AI
+    # ==========================================================================
     
+    # Primary embedding storage using Fabric's native vector format
+    # This field stores the embedding in binary format optimized for Fabric's VECTOR_DISTANCE function
+    # Binary storage is more efficient than JSON for large-scale operations
+    embedding_vector = models.BinaryField(
+        null=True,                              # Allow null for questions not yet processed
+        blank=True,                             # Allow empty in forms
+        help_text="Fabric native vector embedding in binary format for optimal performance"
+    )
+    
+    # Backup embedding storage in JSON format
+    # This provides compatibility with external tools and easier debugging
+    # JSON format is human-readable but less efficient for similarity operations
+    embedding_json = models.TextField(
+        blank=True,                             # Allow empty strings
+        null=True,                              # Allow null values
+        help_text="JSON representation of embedding vector for compatibility and debugging"
+    )
+
+    # AI processing status tracking
+    # This field tracks whether Fabric AI has processed this question
+    # Helps prevent duplicate processing and enables batch operations
+    fabric_ai_processed = models.BooleanField(
+        default=False,                          # Default to unprocessed
+        help_text="Indicates whether Fabric AI processing has been completed"
+    )
+    # Vector indexing status for performance optimization
+    # Tracks whether this question's embedding is included in Fabric's vector index
+    # Important for monitoring similarity search performance
+    fabric_similarity_indexed = models.BooleanField(
+        default=False,                          # Default to not indexed
+        help_text="Indicates whether the embedding vector is properly indexed in Fabric"
+    )
+    # AI confidence score for quality assessment
+    # Fabric AI provides confidence scores for its operations
+    # Higher scores indicate more reliable AI results
+    ai_confidence_score = models.FloatField(
+        null=True,                              # Allow null for unprocessed questions
+        blank=True,                             # Allow empty in forms
+        help_text="Fabric AI confidence score (0.0 to 1.0, higher = more confident)"
+    )
+    # Semantic clustering identifier
+    # Fabric's AI.CLUSTER function assigns questions to semantic groups
+    # This helps moderators organize questions by topic automatically
+    fabric_semantic_cluster = models.CharField(
+        max_length=100,                         # Reasonable length for cluster names
+        blank=True,                             # Allow empty strings
+        null=True,                              # Allow null values
+        help_text="Semantic cluster assigned by Fabric AI for automatic grouping"
+    )
+        # ==========================================================================
+    # EXTENDED AI METADATA FIELDS
+    # ==========================================================================
+    
+    # Sentiment analysis result from Fabric AI
+    # Tracks the emotional tone of the question (positive, negative, neutral)
+    # Helps moderators prioritize urgent or sensitive questions
+    ai_sentiment = models.CharField(
+        max_length=20,                          # Enough for sentiment labels
+        blank=True,                             # Allow empty strings
+        null=True,                              # Allow null values
+        choices=[                               # Predefined sentiment options
+            ('positive', 'Positive'),
+            ('negative', 'Negative'),
+            ('neutral', 'Neutral'),
+            ('mixed', 'Mixed'),
+        ],
+        help_text="Sentiment analysis result from Fabric AI"
+    )
+    
+    # Topic extraction results from Fabric AI
+    # Stores automatically identified topics in JSON format
+    # Helps with question categorization and analytics
+    ai_topics = models.TextField(
+        blank=True,                             # Allow empty strings
+        null=True,                              # Allow null values
+        help_text="JSON array of topics extracted by Fabric AI"
+    )
+    
+    # Automatic categorization by Fabric AI
+    # Assigns questions to predefined categories for organization
+    # Supports filtering and analytics by question type
+    ai_category = models.CharField(
+        max_length=50,                          # Reasonable length for categories
+        blank=True,                             # Allow empty strings
+        null=True,                              # Allow null values
+        help_text="Automatic category assigned by Fabric AI"
+    )
+    
+    # Processing timestamps for performance monitoring
+    # Tracks when AI processing started and completed
+    # Helps identify performance bottlenecks and optimization opportunities
+    ai_processing_started_at = models.DateTimeField(
+        null=True,                              # Allow null for unprocessed questions
+        blank=True,                             # Allow empty in forms
+        help_text="Timestamp when AI processing began"
+    )
+    
+    ai_processing_completed_at = models.DateTimeField(
+        null=True,                              # Allow null for incomplete processing
+        blank=True,                             # Allow empty in forms
+        help_text="Timestamp when AI processing completed"
+    )
+    
+    # Error tracking for AI operations
+    # Stores any errors that occurred during AI processing
+    # Helps with debugging and system monitoring
+    ai_processing_error = models.TextField(
+        blank=True,                             # Allow empty strings
+        null=True,                              # Allow null values
+        help_text="Error message if AI processing failed"
+    )
+    class Meta:
+        """
+        Model metadata including ordering and database indexes
+        """
+        ordering = ['-upvotes', '-created_at']  # Sort by popularity then recency
+        
+        # Database indexes for performance optimization
+        indexes = [
+            # Standard indexes for common queries
+            models.Index(fields=['event', 'created_at']),           # Event timeline queries
+            models.Index(fields=['is_starred', 'is_staged']),       # Moderator queries
+            models.Index(fields=['author', 'created_at']),          # User question history
+            
+            # AI-specific indexes for Fabric operations
+            models.Index(fields=['fabric_ai_processed', 'event']),   # AI processing status
+            models.Index(fields=['fabric_semantic_cluster', 'event']), # Semantic clustering
+            models.Index(fields=['ai_confidence_score']),            # Quality filtering
+            models.Index(fields=['ai_sentiment', 'event']),         # Sentiment analysis
+            models.Index(fields=['ai_category', 'event']),          # Category filtering
+            
+            # Performance monitoring indexes
+            models.Index(fields=['ai_processing_completed_at']),     # Processing timeline
+        ]
+        
+        # Constraints to ensure data integrity
+        constraints = [
+            # Ensure confidence scores are in valid range
+            models.CheckConstraint(
+                check=models.Q(ai_confidence_score__gte=0.0) & models.Q(ai_confidence_score__lte=1.0),
+                name='valid_ai_confidence_score'
+            ),
+        ]
     def __str__(self):
         return f"Question by {self.author.name}: {self.text[:50]}..."
-
+    def get_ai_processing_duration(self):
+        """
+        Calculate how long AI processing took for this question
+        
+        Returns:
+            timedelta object or None if processing not completed
+        """
+        if self.ai_processing_started_at and self.ai_processing_completed_at:
+            return self.ai_processing_completed_at - self.ai_processing_started_at
+        return None
+    
+    def has_valid_embedding(self):
+        """
+        Check if this question has a valid embedding for similarity operations
+        
+        Returns:
+            Boolean indicating whether the question can be used for similarity matching
+        """
+        return bool(self.embedding_vector and self.fabric_ai_processed)
+    
+    def get_similarity_metadata(self):
+        """
+        Get metadata about this question's AI processing for debugging
+        
+        Returns:
+            Dictionary with AI processing information
+        """
+        return {
+            'fabric_ai_processed': self.fabric_ai_processed,
+            'similarity_indexed': self.fabric_similarity_indexed,
+            'confidence_score': self.ai_confidence_score,
+            'semantic_cluster': self.fabric_semantic_cluster,
+            'processing_duration': self.get_ai_processing_duration(),
+            'has_valid_embedding': self.has_valid_embedding(),
+        }
 # Vote Class
 class Vote(models.Model):
     """Vote tracking for questions"""

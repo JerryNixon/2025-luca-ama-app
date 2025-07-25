@@ -288,10 +288,14 @@ SIMPLE_JWT = {
     'SIGNING_KEY': SECRET_KEY,
 }
 
-#microsoft Fabric AI configuration (Primary AI engine)
+# Microsoft Fabric AI Configuration (Primary AI Engine)
 print("🤖 Configuring Microsoft Fabric AI features...")
-FABRIC_AI_ENABLED = True  # Enable Fabric AI features
-FABRIC_AI_CONFIG = {
+
+# Enable Fabric AI as the primary AI engine
+# This tells our application to use Fabric's native AI functions first
+FABRIC_AI_ENABLED = True  # Always true since Fabric AI is built into Fabric SQL
+
+# Configuration dictionary for Fabric AI capabilities
 FABRIC_AI_CONFIG = {
     # Enable vector functions - these are Fabric's built-in AI functions for embeddings
     'use_vector_functions': True,

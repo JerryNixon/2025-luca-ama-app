@@ -4,7 +4,14 @@
 // Import the configured API client for making HTTP requests
 import apiClient from '@/lib/api';
 // Import TypeScript types for type safety
-import { Question, CreateQuestionForm, QuestionFilters, ApiResponse, PaginatedResponse } from '@/types';
+import { 
+  Question, 
+  CreateQuestionForm, 
+  QuestionFilters, 
+  ApiResponse, 
+  PaginatedResponse,
+  SimilarQuestionsResponse 
+} from '@/types';
 
 /**
  * Question Service Object
@@ -15,7 +22,8 @@ import { Question, CreateQuestionForm, QuestionFilters, ApiResponse, PaginatedRe
  * - Voting functionality (upvotes)
  * - Moderation features (starring, staging, marking as answered)
  * - Presenter notes management
- * - AI-powered question analysis
+ * - AI-powered question analysis and similarity detection
+ * - Real-time duplicate prevention using Microsoft Fabric AI
  * 
  * All methods return promises and handle API communication with proper error handling.
  */
@@ -243,4 +251,71 @@ export const questionService = {
     const response = await apiClient.post<ApiResponse<{ summary: string }>>(`/questions/${questionId}/ai-summary/`);
     return response.data.data.summary;
   },
+
+  /**
+   * Find Similar Questions (Real-time AI Similarity Detection)
+   * 
+   * Uses Microsoft Fabric AI to find questions similar to the provided text.
+   * This powers the real-time duplicate detection feature while users are typing.
+   * 
+   * Key Features:
+   * - Leverages Fabric's VECTOR_DISTANCE() function for optimal performance
+   * - Returns similarity scores and AI metadata for each match
+   * - Includes confidence scores and semantic analysis
+   * - Designed for real-time use with debounced typing
+   * 
+   * @param eventId - Unique identifier of the event to search within
+   * @param questionText - The question text to find similarities for (minimum 10 characters recommended)
+   * @returns Promise resolving to similar questions with AI metadata
+   * @throws Error if event doesn't exist, user lacks access, or AI service fails
+   * 
+   * @example
+   * ```typescript
+   * const similar = await questionService.findSimilarQuestions(
+   *   'event-123', 
+   *   'What are the remote work policies?'
+   * );
+   * console.log(`Found ${similar.similar_questions.length} similar questions`);
+   * console.log(`AI method used: ${similar.method}`);
+   * ```
+   */
+  async findSimilarQuestions(eventId: string, questionText: string): Promise<SimilarQuestionsResponse> {
+    // Input validation - ensure we have enough text for meaningful similarity analysis
+    if (!questionText || questionText.trim().length < 5) {
+      // Return empty results for very short text instead of making API call
+      return {
+        similar_questions: [],
+        method: 'fabric_ai',
+        threshold_used: 0.85,
+        message: 'Text too short for similarity analysis'
+      };
+    }
+
+    try {
+      // Call our Fabric AI similarity detection endpoint
+      // This endpoint uses the find_similar_questions_fabric() method we implemented in the backend
+      const response = await apiClient.post<ApiResponse<SimilarQuestionsResponse>>(
+        `/events/${eventId}/ai/similar-questions/`,
+        {
+          question_text: questionText.trim()
+        }
+      );
+
+      // Return the AI analysis results
+      return response.data.data;
+
+    } catch (error) {
+      // Handle API errors gracefully - don't break the user experience
+      console.error('Similar questions API error:', error);
+      
+      // Return empty results with error indication
+      return {
+        similar_questions: [],
+        method: 'fallback',
+        threshold_used: 0.85,
+        message: 'Similarity detection temporarily unavailable'
+      };
+    }
+  },
+
 };
