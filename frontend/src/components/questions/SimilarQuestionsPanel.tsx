@@ -11,8 +11,10 @@ import { SimilarQuestion, SimilarQuestionsResponse } from '@/types';
 interface SimilarQuestionsPanelProps {
   /** The similar questions data from AI analysis */
   similarData: SimilarQuestionsResponse | null;
-  /** Whether the AI analysis is currently loading */
+  /** Whether the AI analysis is currently loading (shows main spinner) */
   isLoading: boolean;
+  /** Whether the AI is updating results in background (shows subtle indicator) */
+  isBackgroundUpdating?: boolean;
   /** Whether to show the panel (for animation control) */
   isVisible: boolean;
   /** Callback when user chooses to upvote a similar question instead of posting new */
@@ -44,6 +46,7 @@ interface SimilarQuestionsPanelProps {
 export default function SimilarQuestionsPanel({
   similarData,
   isLoading,
+  isBackgroundUpdating = false,
   isVisible,
   onUpvoteSimilar,
   onContinueWithNew,
@@ -91,6 +94,13 @@ export default function SimilarQuestionsPanel({
               <h3 className="font-semibold text-gray-900">
                 {isLoading ? 'Finding Similar Questions...' : 'Similar Questions Found'}
               </h3>
+              {/* Subtle background updating indicator */}
+              {isBackgroundUpdating && !isLoading && (
+                <div className="flex items-center space-x-1 text-blue-500">
+                  <FiLoader className="w-3 h-3 animate-spin" />
+                  <span className="text-xs font-medium">Updating...</span>
+                </div>
+              )}
             </div>
             
             {/* AI Method Indicator */}
@@ -220,8 +230,8 @@ export default function SimilarQuestionsPanel({
             </div>
           )}
 
-          {/* Error State */}
-          {!isLoading && similarData && similarData.message.includes('unavailable') && (
+          {/* Error State - Show when method is fallback indicating AI failure */}
+          {!isLoading && similarData && similarData.method === 'fallback' && (
             <div className="text-center py-6">
               <FiAlertCircle className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
               <h4 className="text-sm font-medium text-gray-900 mb-1">AI Analysis Unavailable</h4>

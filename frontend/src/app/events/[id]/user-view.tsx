@@ -1,10 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
-import { Event, Question } from '../../../types';
+import { Event, Question, SimilarQuestionsResponse } from '../../../types';
 import { FiArrowUp, FiSend, FiUser, FiEyeOff } from 'react-icons/fi';
+import { questionService } from '../../../services/questionService';
+import SimilarQuestionsPanel from '../../../components/questions/SimilarQuestionsPanel';
+import SimpleTest from '../../../components/test/SimpleTest';
+import AISimilarityDetector from '../../../components/ai/AISimilarityDetector';
 
 /**
  * User Event View Page Component
@@ -33,10 +37,19 @@ interface UserQuestion extends Question {
 }
 
 export default function UserEventViewPage() {
+  console.log('🔥🔥🔥 UserEventViewPage component is EXECUTING! 🔥🔥🔥');
+  
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
   const params = useParams();
   const eventId = params.id as string;
+
+  // Debug logging
+  console.log('🎯 UserEventViewPage initialized with eventId:', eventId);
+  console.log('🎯 Params:', params);
+  console.log('🎯 User:', user);
+  console.log('🎯 IsAuthenticated:', isAuthenticated);
+  console.log('🚀 AI Similarity Detection Feature LOADED - Version 2.0');
 
   // Component state
   const [event, setEvent] = useState<Event | null>(null);
@@ -51,6 +64,12 @@ export default function UserEventViewPage() {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  // AI Similarity Detection state
+  const [similarQuestionsData, setSimilarQuestionsData] = useState<SimilarQuestionsResponse | null>(null);
+  const [similarityLoading, setSimilarityLoading] = useState(false);
+  const [showSimilarPanel, setShowSimilarPanel] = useState(false);
+  const [upvotingQuestions, setUpvotingQuestions] = useState<Set<string>>(new Set());
 
   // Form validation
   const [showError, setShowError] = useState(false);
@@ -303,6 +322,113 @@ export default function UserEventViewPage() {
     }
   };
 
+  /**
+   * Debounced similarity detection for real-time AI analysis
+   * Triggers when user types in the question textarea
+   */
+  const debouncedSimilarityCheck = useCallback(
+    async (text: string) => {
+      console.log('🔍 Similarity check triggered for text:', text);
+      
+      // Don't check if text is too short
+      if (!text.trim() || text.trim().length < 10) {
+        console.log('❌ Text too short, hiding panel');
+        setShowSimilarPanel(false);
+        setSimilarQuestionsData(null);
+        return;
+      }
+
+      try {
+        console.log('🤖 Starting AI analysis...');
+        setSimilarityLoading(true);
+        setShowSimilarPanel(true);
+
+        // Call the AI similarity detection API
+        console.log('📡 Calling API with eventId:', eventId, 'text:', text.trim());
+        const response = await questionService.findSimilarQuestions(eventId, text.trim());
+        console.log('✅ AI response received:', response);
+        setSimilarQuestionsData(response);
+
+        // Only show panel if we have similar questions
+        const shouldShow = response.similar_questions.length > 0;
+        console.log('📊 Similar questions found:', response.similar_questions.length, 'Show panel:', shouldShow);
+        setShowSimilarPanel(shouldShow);
+      } catch (error) {
+        console.error('❌ Similarity detection failed:', error);
+        // On error, hide the panel gracefully
+        setShowSimilarPanel(false);
+        setSimilarQuestionsData(null);
+      } finally {
+        setSimilarityLoading(false);
+        console.log('🏁 Similarity check complete');
+      }
+    },
+    []
+  );
+
+  /**
+   * Handle upvoting a similar question from the panel
+   */
+  const handleUpvoteSimilar = async (questionId: string): Promise<void> => {
+    setUpvotingQuestions(prev => new Set(prev).add(questionId));
+    
+    try {
+      // Mock upvote API call - replace with actual API
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // Update the local questions state if the question exists
+      setQuestions(prev => prev.map(q => 
+        q.id === questionId ? { ...q, upvotes: q.upvotes + 1, hasVoted: true } : q
+      ));
+
+      // Optionally close the panel and clear the form on successful upvote
+      setShowSimilarPanel(false);
+      setQuestionText('');
+      setSimilarQuestionsData(null);
+      
+    } catch (error) {
+      console.error('Failed to upvote similar question:', error);
+      throw error; // Re-throw to let the component handle the error
+    } finally {
+      setUpvotingQuestions(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(questionId);
+        return newSet;
+      });
+    }
+  };
+
+  /**
+   * Handle user decision to continue with posting new question
+   */
+  const handleContinueWithNew = () => {
+    setShowSimilarPanel(false);
+    setSimilarQuestionsData(null);
+    // Focus back to textarea for user to continue
+    const textarea = document.querySelector('textarea');
+    textarea?.focus();
+  };
+
+  /**
+   * Debounced effect for similarity detection
+   */
+  useEffect(() => {
+    console.log('⏱️ useEffect triggered, questionText:', questionText);
+    const timeoutId = setTimeout(() => {
+      if (questionText.trim()) {
+        console.log('🚀 Triggering similarity check after 1 second delay');
+        debouncedSimilarityCheck(questionText);
+      } else {
+        console.log('⭕ No text to analyze');
+      }
+    }, 1000); // 1 second debounce
+
+    return () => {
+      console.log('🧹 Cleaning up timeout');
+      clearTimeout(timeoutId);
+    };
+  }, [questionText, debouncedSimilarityCheck]);
+
   // Loading state
   if (loading) {
     return (
@@ -370,6 +496,10 @@ export default function UserEventViewPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Question Submission Form */}
         <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
+          <div style={{backgroundColor: 'red', color: 'white', padding: '20px', fontSize: '20px', fontWeight: 'bold'}}>
+            ⚠️ EMERGENCY TEST - If you see this, React is working
+          </div>
+          <SimpleTest />
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Add A Question</h2>
           
           {submitSuccess && (
@@ -383,7 +513,10 @@ export default function UserEventViewPage() {
             <div>
               <textarea
                 value={questionText}
-                onChange={(e) => setQuestionText(e.target.value)}
+                onChange={(e) => {
+                  console.log('📝 Textarea onChange triggered:', e.target.value);
+                  setQuestionText(e.target.value);
+                }}
                 placeholder="How is project Galactica advancing? Do we have any updates on funding and timelines?"
                 className={`w-full px-4 py-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
                   showError && !questionText.trim() 
@@ -397,6 +530,30 @@ export default function UserEventViewPage() {
                 <p className="text-red-600 text-sm mt-1">Please enter a question</p>
               )}
             </div>
+
+            {/* Simple AI Similarity Detection Test */}
+            <AISimilarityDetector 
+              eventId={eventId}
+              questionText={questionText}
+              onSimilarFound={(data) => {
+                console.log('🎯 Similar questions found:', data);
+                setSimilarQuestionsData(data);
+                setShowSimilarPanel(data.similar_questions.length > 0);
+              }}
+            />
+
+            {/* AI-Powered Similar Questions Panel */}
+            <div style={{backgroundColor: 'yellow', padding: '10px', margin: '10px'}}>
+              🧪 DEBUG: SimilarQuestionsPanel Container - Loading: {similarityLoading.toString()}, Visible: {showSimilarPanel.toString()}
+            </div>
+            <SimilarQuestionsPanel
+              similarData={similarQuestionsData}
+              isLoading={similarityLoading}
+              isVisible={showSimilarPanel}
+              onUpvoteSimilar={handleUpvoteSimilar}
+              onContinueWithNew={handleContinueWithNew}
+              upvotingQuestions={upvotingQuestions}
+            />
 
             {/* Anonymous Toggle and Submit */}
             <div className="flex items-center justify-between">

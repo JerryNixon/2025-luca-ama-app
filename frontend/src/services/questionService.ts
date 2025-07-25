@@ -285,9 +285,8 @@ export const questionService = {
       // Return empty results for very short text instead of making API call
       return {
         similar_questions: [],
-        method: 'fabric_ai',
-        threshold_used: 0.85,
-        message: 'Text too short for similarity analysis'
+        method: 'fallback',
+        threshold_used: 0.85
       };
     }
 
@@ -301,8 +300,13 @@ export const questionService = {
         }
       );
 
-      // Return the AI analysis results
-      return response.data.data;
+      // Extract the AI analysis results from the nested response structure
+      // Backend returns: { success: true, data: SimilarQuestionsResponse, message: string }
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      } else {
+        throw new Error(response.data.message || 'Unexpected response format');
+      }
 
     } catch (error) {
       // Handle API errors gracefully - don't break the user experience
@@ -312,8 +316,7 @@ export const questionService = {
       return {
         similar_questions: [],
         method: 'fallback',
-        threshold_used: 0.85,
-        message: 'Similarity detection temporarily unavailable'
+        threshold_used: 0.85
       };
     }
   },

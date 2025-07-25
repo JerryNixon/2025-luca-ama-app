@@ -563,8 +563,8 @@ class FabricAIService:
             embedding_binary, embedding_json = self.generate_embedding_with_fabric(question_text)
             
             if not embedding_binary:
-                logger.warning("⚠️ Could not generate embedding for similarity search")
-                return []
+                logger.warning("⚠️ Could not generate embedding for similarity search - using text fallback")
+                return self._find_similar_questions_text_fallback(question_text, event_id, limit)
             
             # Use raw SQL to leverage Fabric's native vector functions
             # This showcases Fabric's performance advantages over traditional similarity methods
@@ -937,6 +937,80 @@ class FabricAIService:
         except Exception as e:
             logger.error(f"Failed to update question AI fields: {e}")
             raise
+
+    def _find_similar_questions_text_fallback(self, question_text: str, event_id: str, limit: int = 5) -> List[Dict[str, Any]]:
+        """
+        Fallback similarity detection using basic text matching when AI functions aren't available
+        """
+        try:
+            logger.info(f"🔄 Using text fallback for similarity detection in event {event_id}")
+            
+            # Simple text similarity using SQL LIKE and common words
+            with connection.cursor() as cursor:
+                # Extract key words from the input question
+                words = [word.lower().strip() for word in question_text.split() if len(word) > 3]
+                
+                if not words:
+                    return []
+                
+                # Build a simple similarity query using word matching
+                similarity_query = """
+                    SELECT 
+                        q.id,
+                        q.text,
+                        q.author_id,
+                        q.created_at,
+                        q.upvote_count,
+                        q.ai_confidence_score,
+                        q.ai_sentiment,
+                        q.ai_category,
+                        q.fabric_semantic_cluster,
+                        0.7 as similarity_score,
+                        'text_fallback' as processing_method
+                    FROM api_question q
+                    WHERE q.event_id = %s 
+                        AND (
+                            LOWER(q.text) LIKE %s 
+                            OR LOWER(q.text) LIKE %s
+                        )
+                    ORDER BY q.upvote_count DESC, q.created_at DESC
+                    LIMIT %s
+                """
+                
+                # Create search patterns from key words
+                pattern1 = f"%{words[0]}%" if words else "%"
+                pattern2 = f"%{words[1]}%" if len(words) > 1 else pattern1
+                
+                cursor.execute(similarity_query, [event_id, pattern1, pattern2, limit])
+                results = cursor.fetchall()
+                
+                # Process results into structured format
+                similar_questions = []
+                for row in results:
+                    similar_questions.append({
+                        'id': str(row[0]),
+                        'text': row[1],
+                        'author_id': str(row[2]) if row[2] else None,
+                        'created_at': row[3].isoformat() if row[3] else None,
+                        'upvote_count': row[4] or 0,
+                        'similarity_score': round(float(row[9]), 3),
+                        'confidence_score': float(row[5]) if row[5] else None,
+                        'ai_sentiment': row[6],
+                        'ai_category': row[7],
+                        'semantic_cluster': row[8],
+                        'processing_method': row[10],
+                        'fabric_features_used': [
+                            'Text-based word matching (fallback)',
+                            'Basic SQL LIKE operations'
+                        ]
+                    })
+                
+                logger.info(f"✅ Found {len(similar_questions)} similar questions using text fallback")
+                return similar_questions
+                
+        except Exception as e:
+            logger.error(f"❌ Text fallback similarity search failed: {e}")
+            return []
 
 # Create a singleton instance that will be imported by other modules
 # This ensures consistent configuration and efficient resource usage

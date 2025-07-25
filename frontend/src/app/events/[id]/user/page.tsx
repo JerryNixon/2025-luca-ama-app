@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
-import { Event, Question, CreateQuestionForm } from '../../../../types';
+import { Event, Question, CreateQuestionForm, SimilarQuestionsResponse } from '../../../../types';
 import { FiArrowUp, FiSend, FiUser, FiEyeOff } from 'react-icons/fi';
 import QuestionCard from '../../../../components/questions/QuestionCard';
 import { eventService } from '../../../../services/eventService';
 import { questionService } from '../../../../services/questionService';
 import { useRealTimeSync } from '../../../../hooks/useRealTimeSync';
+import SimilarQuestionsPanel from '../../../../components/questions/SimilarQuestionsPanel';
 
 /**
  * User Event View Page Component
@@ -37,6 +38,8 @@ interface UserQuestion extends Question {
 }
 
 export default function UserEventViewPage() {
+  console.log('🔥🔥🔥 CORRECT UserEventViewPage is EXECUTING! 🔥🔥🔥');
+  
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
   const params = useParams();
@@ -55,6 +58,16 @@ export default function UserEventViewPage() {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  // AI Similarity Detection state
+  const [similarQuestionsData, setSimilarQuestionsData] = useState<SimilarQuestionsResponse | null>(null);
+  const [similarityLoading, setSimilarityLoading] = useState(false);
+  const [showSimilarPanel, setShowSimilarPanel] = useState(false);
+  const [upvotingQuestions, setUpvotingQuestions] = useState<Set<string>>(new Set());
+  
+  // Track analysis state for smooth UX
+  const [hasShownInitialLoading, setHasShownInitialLoading] = useState(false);
+  const [isBackgroundUpdating, setIsBackgroundUpdating] = useState(false);
 
   // Form validation
   const [showError, setShowError] = useState(false);
@@ -251,6 +264,148 @@ export default function UserEventViewPage() {
   };
 
   /**
+   * Smart similarity detection with improved loading states
+   */
+  const debouncedSimilarityCheck = useCallback(
+    async (text: string) => {
+      console.log('🔍 AI Similarity check triggered for text:', text);
+      
+      // Early exit for short text
+      if (!text.trim() || text.trim().length < 10) {
+        console.log('❌ Text too short for analysis');
+        return;
+      }
+
+      try {
+        console.log('🤖 Starting AI analysis...');
+        
+        // Set appropriate loading state
+        if (!hasShownInitialLoading) {
+          // First time - show main loading spinner
+          setSimilarityLoading(true);
+        } else {
+          // Background update - show subtle loading indicator
+          setIsBackgroundUpdating(true);
+        }
+
+        console.log('📡 Calling API with eventId:', eventId, 'text:', text.trim());
+        const response = await questionService.findSimilarQuestions(eventId, text.trim());
+        console.log('✅ AI response received:', response);
+        
+        setSimilarQuestionsData(response);
+
+        // Show panel if we have similar questions OR if we want to show "no results found"
+        const shouldShow = response.similar_questions.length > 0 || response.method === 'fabric_ai';
+        console.log('📊 Similar questions found:', response.similar_questions.length, 'Show panel:', shouldShow);
+        setShowSimilarPanel(shouldShow);
+        
+      } catch (error) {
+        console.error('❌ Similarity detection failed:', error);
+        // Keep panel visible on error with last good results
+        console.log('⚠️ Keeping panel visible despite error');
+      } finally {
+        // Clear loading states
+        setSimilarityLoading(false);
+        setIsBackgroundUpdating(false);
+        console.log('🏁 Similarity check complete');
+      }
+    },
+    [eventId, hasShownInitialLoading] // Updated dependencies
+  );
+
+  /**
+   * Handle upvoting a similar question
+   */
+  const handleUpvoteSimilar = async (questionId: string): Promise<void> => {
+    setUpvotingQuestions(prev => new Set(prev).add(questionId));
+    
+    try {
+      await questionService.upvoteQuestion(questionId);
+      
+      setQuestions(prev => prev.map(q => 
+        q.id === questionId ? { ...q, upvotes: q.upvotes + 1, hasVoted: true } : q
+      ));
+
+      setShowSimilarPanel(false);
+      setQuestionText('');
+      setSimilarQuestionsData(null);
+      // Reset analysis state so user can start fresh
+      setHasShownInitialLoading(false);
+      setIsBackgroundUpdating(false);
+      
+    } catch (error) {
+      console.error('Failed to upvote similar question:', error);
+      throw error;
+    } finally {
+      setUpvotingQuestions(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(questionId);
+        return newSet;
+      });
+    }
+  };
+
+  /**
+   * Handle user decision to continue with new question
+   */
+  const handleContinueWithNew = () => {
+    setShowSimilarPanel(false);
+    setSimilarQuestionsData(null);
+    // Keep the initial loading state so background updates continue working smoothly
+  };
+
+  /**
+   * Smooth similarity detection with loading states
+   * - First analysis at 10+ chars: Show loading spinner
+   * - Subsequent updates: Silent background updates without loading spinner
+   * - Debounced to prevent excessive API calls
+   */
+  useEffect(() => {
+    const currentText = questionText.trim();
+    
+    // Case 1: Text is completely empty - reset everything
+    if (currentText.length === 0) {
+      console.log('🧹 Text cleared, resetting AI state');
+      setShowSimilarPanel(false);
+      setSimilarQuestionsData(null);
+      setHasShownInitialLoading(false);
+      setIsBackgroundUpdating(false);
+      return;
+    }
+    
+    // Case 2: Text is too short for analysis
+    if (currentText.length < 10) {
+      console.log('⏭️ Text length:', currentText.length, '- waiting for threshold (10+ chars)');
+      return;
+    }
+    
+    // Case 3: Text is long enough - start analysis with appropriate loading state
+    console.log('🎯 Text ready for analysis:', currentText.length, 'characters');
+    
+    const timeoutId = setTimeout(() => {
+      const latestText = questionText.trim();
+      
+      // Double-check user didn't clear the text while we were waiting
+      if (latestText.length >= 10) {
+        if (!hasShownInitialLoading) {
+          // First analysis - show loading spinner
+          console.log('🚀 First analysis - showing loading spinner');
+          setHasShownInitialLoading(true);
+          setShowSimilarPanel(true);
+          debouncedSimilarityCheck(latestText);
+        } else {
+          // Background update - no loading spinner
+          console.log('🔄 Background update - silent analysis');
+          setIsBackgroundUpdating(true);
+          debouncedSimilarityCheck(latestText);
+        }
+      }
+    }, hasShownInitialLoading ? 1000 : 1500); // Faster updates after first analysis
+
+    return () => clearTimeout(timeoutId);
+  }, [questionText, hasShownInitialLoading, debouncedSimilarityCheck]);
+
+  /**
    * Handle question submission
    */
   const handleSubmitQuestion = async (e: React.FormEvent) => {
@@ -288,6 +443,12 @@ export default function UserEventViewPage() {
       setQuestionText('');
       setIsAnonymous(false);
       setSubmitSuccess(true);
+      
+      // Reset AI analysis state for fresh start
+      setShowSimilarPanel(false);
+      setSimilarQuestionsData(null);
+      setHasShownInitialLoading(false);
+      setIsBackgroundUpdating(false);
 
       // Hide success message after 3 seconds
       setTimeout(() => setSubmitSuccess(false), 3000);
@@ -420,6 +581,7 @@ export default function UserEventViewPage() {
               <textarea
                 value={questionText}
                 onChange={(e) => {
+                  console.log('📝 Textarea onChange triggered:', e.target.value);
                   setQuestionText(e.target.value);
                   handleTypingStart(); // Pause auto-refresh while typing
                 }}
@@ -435,6 +597,46 @@ export default function UserEventViewPage() {
               {showError && !questionText.trim() && (
                 <p className="text-red-600 text-sm mt-1">Please enter a question</p>
               )}
+            </div>
+
+            {/* AI-Powered Similar Questions Panel */}
+            <SimilarQuestionsPanel
+              similarData={similarQuestionsData}
+              isLoading={similarityLoading}
+              isBackgroundUpdating={isBackgroundUpdating}
+              isVisible={showSimilarPanel}
+              onUpvoteSimilar={handleUpvoteSimilar}
+              onContinueWithNew={handleContinueWithNew}
+              upvotingQuestions={upvotingQuestions}
+            />
+
+            {/* Debug Info - Remove this later */}
+            <div style={{backgroundColor: '#f0f9ff', border: '1px solid #0ea5e9', padding: '8px', margin: '8px 0', borderRadius: '4px', fontSize: '12px'}}>
+              <details>
+                <summary style={{cursor: 'pointer', fontWeight: 'bold', color: '#0369a1'}}>� AI Debug Info</summary>
+                <div style={{marginTop: '8px'}}>
+                  Loading: {similarityLoading.toString()}, Background: {isBackgroundUpdating.toString()}, Visible: {showSimilarPanel.toString()}, Text length: {questionText.length}
+                  <br />
+                  Initial Loading Shown: {hasShownInitialLoading.toString()}
+                  <br />
+                  Similar Questions Found: {similarQuestionsData?.similar_questions?.length || 0}
+                  <br />
+                  AI Method: {similarQuestionsData?.method || 'none'}
+                  <br />
+                  <button 
+                    onClick={() => setShowSimilarPanel(!showSimilarPanel)}
+                    style={{backgroundColor: '#0ea5e9', color: 'white', padding: '4px 8px', margin: '4px 2px', border: 'none', borderRadius: '3px', fontSize: '11px'}}
+                  >
+                    Toggle Panel
+                  </button>
+                  <button 
+                    onClick={() => debouncedSimilarityCheck(questionText)}
+                    style={{backgroundColor: '#10b981', color: 'white', padding: '4px 8px', margin: '4px 2px', border: 'none', borderRadius: '3px', fontSize: '11px'}}
+                  >
+                    Force AI Check
+                  </button>
+                </div>
+              </details>
             </div>
 
             {/* Anonymous Toggle and Submit */}

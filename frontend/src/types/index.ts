@@ -125,7 +125,7 @@ export interface SimilarQuestionsResponse {
     cache_enabled: boolean;
     processing_timeout: number;
   };
-  message: string;                     // Human-readable result message
+  // Note: message is at the API response level, not in the data object
 }
 
 // ==============================================================================
