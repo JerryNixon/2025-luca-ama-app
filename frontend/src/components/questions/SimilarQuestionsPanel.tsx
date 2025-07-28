@@ -82,12 +82,12 @@ export default function SimilarQuestionsPanel({
 
   return (
     <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
-      isVisible ? 'max-h-96 opacity-100 mt-4' : 'max-h-0 opacity-0 mt-0'
+      isVisible ? 'max-h-[28rem] opacity-100 mt-4' : 'max-h-0 opacity-0 mt-0'
     }`}>
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm">
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm flex flex-col h-full">
         
-        {/* Panel Header */}
-        <div className="px-6 py-4 border-b border-blue-200 bg-white bg-opacity-60 rounded-t-lg">
+        {/* Panel Header - Fixed at top */}
+        <div className="px-6 py-4 border-b border-blue-200 bg-white bg-opacity-60 rounded-t-lg flex-shrink-0">
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-2">
               <FiZap className="w-5 h-5 text-blue-600" />
@@ -127,138 +127,169 @@ export default function SimilarQuestionsPanel({
           </p>
         </div>
 
-        {/* Panel Content */}
-        <div className="p-6">
-          {/* Loading State */}
-          {isLoading && (
-            <div className="flex items-center justify-center py-8">
-              <div className="flex items-center space-x-3">
-                <FiLoader className="w-5 h-5 text-blue-600 animate-spin" />
-                <span className="text-gray-600">Analyzing with Microsoft Fabric AI...</span>
+        {/* Panel Content - Scrollable area */}
+        <div className="flex-1 overflow-hidden flex flex-col relative" style={{ maxHeight: '20rem' }}>
+          <div 
+            className="overflow-y-scroll px-6 py-6 similar-questions-scroll"
+            style={{
+              height: '20rem',
+              maxHeight: '20rem',
+              scrollbarWidth: 'auto',
+              scrollbarColor: '#3b82f6 #e5e7eb'
+            }}
+          >
+            {/* Loading State */}
+            {isLoading && (
+              <div className="flex items-center justify-center py-8">
+                <div className="flex items-center space-x-3">
+                  <FiLoader className="w-5 h-5 text-blue-600 animate-spin" />
+                  <span className="text-gray-600">Analyzing with Microsoft Fabric AI...</span>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Similar Questions List */}
-          {!isLoading && similarData && similarData.similar_questions.length > 0 && (
-            <div className="space-y-3">
-              {similarData.similar_questions.map((question, index) => {
-                const similarity = getSimilarityIndicator(question.similarity_score);
-                const isUpvoting = upvotingQuestions.has(question.id);
+            {/* Similar Questions List */}
+            {!isLoading && similarData && similarData.similar_questions.length > 0 && (
+              <div className="space-y-3">
+                {/* Scroll indicator for many questions */}
+                {similarData.similar_questions.length > 3 && (
+                  <div className="flex items-center justify-between text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
+                    <span className="flex items-center space-x-1">
+                      <span>📜</span>
+                      <span>{similarData.similar_questions.length} similar questions found</span>
+                    </span>
+                    <span className="flex items-center space-x-1">
+                      <span>↕️</span>
+                      <span>Scroll to see more</span>
+                    </span>
+                  </div>
+                )}
                 
-                return (
-                  <div 
-                    key={question.id}
-                    className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-start justify-between">
-                      {/* Question Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2 mb-2">
-                          {/* Similarity Score Badge */}
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${similarity.bg} ${similarity.color}`}>
-                            <span className="mr-1">{similarity.icon}</span>
-                            {Math.round(question.similarity_score * 100)}% {similarity.label}
-                          </span>
-                          
-                          {/* Vote Count */}
-                          <span className="text-sm font-medium text-gray-700">
-                            {question.upvote_count} votes
-                          </span>
-                          
-                          {/* AI Metadata */}
-                          {question.ai_sentiment && (
-                            <span className="text-xs text-gray-500">
-                              {question.ai_sentiment === 'positive' ? '😊' : 
-                               question.ai_sentiment === 'negative' ? '😟' : '😐'} 
-                              {question.ai_sentiment}
+                {similarData.similar_questions.map((question, index) => {
+                  const similarity = getSimilarityIndicator(question.similarity_score);
+                  const isUpvoting = upvotingQuestions.has(question.id);
+                  
+                  return (
+                    <div 
+                      key={question.id}
+                      className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-start justify-between">
+                        {/* Question Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-2">
+                            {/* Question Number */}
+                            <span className="inline-flex items-center justify-center w-5 h-5 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
+                              {index + 1}
                             </span>
-                          )}
-                        </div>
-                        
-                        {/* Question Text */}
-                        <p className="text-gray-900 text-sm leading-relaxed">
-                          {question.text}
-                        </p>
-                        
-                        {/* Question Metadata */}
-                        <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
-                          <span>
-                            {new Date(question.created_at).toLocaleDateString()}
-                          </span>
-                          {question.ai_category && (
-                            <span className="px-2 py-0.5 bg-gray-100 rounded">
-                              {question.ai_category}
+                            
+                            {/* Similarity Score Badge */}
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${similarity.bg} ${similarity.color}`}>
+                              <span className="mr-1">{similarity.icon}</span>
+                              {Math.round(question.similarity_score * 100)}% {similarity.label}
                             </span>
-                          )}
+                            
+                            {/* Vote Count */}
+                            <span className="text-sm font-medium text-gray-700">
+                              {question.upvote_count} votes
+                            </span>
+                            
+                            {/* AI Metadata */}
+                            {question.ai_sentiment && (
+                              <span className="text-xs text-gray-500">
+                                {question.ai_sentiment === 'positive' ? '😊' : 
+                                 question.ai_sentiment === 'negative' ? '😟' : '😐'} 
+                                {question.ai_sentiment}
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Question Text */}
+                          <p className="text-gray-900 text-sm leading-relaxed">
+                            {question.text}
+                          </p>
+                          
+                          {/* Question Metadata */}
+                          <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                            <span>
+                              {new Date(question.created_at).toLocaleDateString()}
+                            </span>
+                            {question.ai_category && (
+                              <span className="px-2 py-0.5 bg-gray-100 rounded">
+                                {question.ai_category}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Upvote Button */}
-                      <div className="ml-4 flex-shrink-0">
-                        <button
-                          onClick={() => handleUpvote(question.id)}
-                          disabled={isUpvoting}
-                          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
-                        >
-                          {isUpvoting ? (
-                            <>
-                              <FiLoader className="w-4 h-4 animate-spin" />
-                              <span>Upvoting...</span>
-                            </>
-                          ) : (
-                            <>
-                              <FiArrowUp className="w-4 h-4" />
-                              <span>Upvote</span>
-                            </>
-                          )}
-                        </button>
+                        {/* Upvote Button */}
+                        <div className="ml-4 flex-shrink-0">
+                          <button
+                            onClick={() => handleUpvote(question.id)}
+                            disabled={isUpvoting}
+                            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+                          >
+                            {isUpvoting ? (
+                              <>
+                                <FiLoader className="w-4 h-4 animate-spin" />
+                                <span>Upvoting...</span>
+                              </>
+                            ) : (
+                              <>
+                                <FiArrowUp className="w-4 h-4" />
+                                <span>Upvote</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* No Similar Questions Found */}
-          {!isLoading && similarData && similarData.similar_questions.length === 0 && (
-            <div className="text-center py-6">
-              <FiCheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
-              <h4 className="text-sm font-medium text-gray-900 mb-1">No Similar Questions Found</h4>
-              <p className="text-xs text-gray-600">Your question appears to be unique!</p>
-            </div>
-          )}
-
-          {/* Error State - Show when method is fallback indicating AI failure */}
-          {!isLoading && similarData && similarData.method === 'fallback' && (
-            <div className="text-center py-6">
-              <FiAlertCircle className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
-              <h4 className="text-sm font-medium text-gray-900 mb-1">AI Analysis Unavailable</h4>
-              <p className="text-xs text-gray-600">Similarity detection is temporarily offline</p>
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          {!isLoading && similarData && similarData.similar_questions.length > 0 && (
-            <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
-              {/* AI Performance Info */}
-              <div className="text-xs text-gray-500">
-                <span>Powered by Microsoft Fabric AI</span>
-                {similarData.performance_info && (
-                  <span className="ml-2">
-                    • {similarData.performance_info.vector_dimension}D vectors
-                  </span>
-                )}
+                  );
+                })}
               </div>
-              
-              {/* Continue Button */}
-              <button
-                onClick={onContinueWithNew}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                📝 Post New Question Anyway
-              </button>
+            )}
+
+            {/* No Similar Questions Found */}
+            {!isLoading && similarData && similarData.similar_questions.length === 0 && (
+              <div className="text-center py-6">
+                <FiCheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                <h4 className="text-sm font-medium text-gray-900 mb-1">No Similar Questions Found</h4>
+                <p className="text-xs text-gray-600">Your question appears to be unique!</p>
+              </div>
+            )}
+
+            {/* Error State - Show when method is fallback indicating AI failure */}
+            {!isLoading && similarData && similarData.method === 'fallback' && (
+              <div className="text-center py-6">
+                <FiAlertCircle className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
+                <h4 className="text-sm font-medium text-gray-900 mb-1">AI Analysis Unavailable</h4>
+                <p className="text-xs text-gray-600">Similarity detection is temporarily offline</p>
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons - Fixed at bottom */}
+          {!isLoading && similarData && similarData.similar_questions.length > 0 && (
+            <div className="flex-shrink-0 px-6 py-4 border-t border-gray-200 bg-white bg-opacity-60">
+              <div className="flex items-center justify-between">
+                {/* AI Performance Info */}
+                <div className="text-xs text-gray-500">
+                  <span>Powered by Microsoft Fabric AI</span>
+                  {similarData.performance_info && (
+                    <span className="ml-2">
+                      • {similarData.performance_info.vector_dimension}D vectors
+                    </span>
+                  )}
+                </div>
+                
+                {/* Continue Button */}
+                <button
+                  onClick={onContinueWithNew}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  📝 Post New Question Anyway
+                </button>
+              </div>
             </div>
           )}
         </div>

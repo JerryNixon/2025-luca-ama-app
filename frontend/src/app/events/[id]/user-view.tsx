@@ -543,9 +543,11 @@ export default function UserEventViewPage() {
             />
 
             {/* AI-Powered Similar Questions Panel */}
+            {/* DEBUG: Commented out for production - uncomment when debugging needed
             <div style={{backgroundColor: 'yellow', padding: '10px', margin: '10px'}}>
               🧪 DEBUG: SimilarQuestionsPanel Container - Loading: {similarityLoading.toString()}, Visible: {showSimilarPanel.toString()}
             </div>
+            */}
             <SimilarQuestionsPanel
               similarData={similarQuestionsData}
               isLoading={similarityLoading}

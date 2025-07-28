@@ -610,7 +610,7 @@ export default function UserEventViewPage() {
               upvotingQuestions={upvotingQuestions}
             />
 
-            {/* Debug Info - Remove this later */}
+            {/* Debug Info - Commented out for production - uncomment when debugging needed
             <div style={{backgroundColor: '#f0f9ff', border: '1px solid #0ea5e9', padding: '8px', margin: '8px 0', borderRadius: '4px', fontSize: '12px'}}>
               <details>
                 <summary style={{cursor: 'pointer', fontWeight: 'bold', color: '#0369a1'}}>� AI Debug Info</summary>
@@ -638,6 +638,7 @@ export default function UserEventViewPage() {
                 </div>
               </details>
             </div>
+            */}
 
             {/* Anonymous Toggle and Submit */}
             <div className="flex items-center justify-between">

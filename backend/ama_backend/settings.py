@@ -374,12 +374,12 @@ AI_PRIMARY_ENGINE = 'FABRIC'
 # Lower values = more loose similarity matching
 
 # Threshold for grouping questions (moderator feature)
-# 0.70 = 70% similarity required - more permissive for better detection
-AI_SIMILARITY_THRESHOLD = float(os.getenv('AI_SIMILARITY_THRESHOLD', '0.70'))
+# 0.85 = 85% similarity required - increased for better precision
+AI_SIMILARITY_THRESHOLD = float(os.getenv('AI_SIMILARITY_THRESHOLD', '0.85'))
 
 # Threshold for real-time suggestions while typing
-# 0.65 = 65% similarity - lower to catch more potential duplicates
-AI_REALTIME_THRESHOLD = float(os.getenv('AI_REALTIME_THRESHOLD', '0.65'))
+# 0.80 = 80% similarity - increased to reduce false positives
+AI_REALTIME_THRESHOLD = float(os.getenv('AI_REALTIME_THRESHOLD', '0.80'))
 
 # Maximum number of similar questions to show at once
 # Prevents UI clutter while still being helpful

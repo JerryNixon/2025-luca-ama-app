@@ -120,3 +120,98 @@ a {
     transform: rotate(360deg);
   }
 }
+
+/*
+ * Custom Scrollbar Styles
+ * Modern, accessible scrollbars for better UX
+ */
+
+/* Custom scrollbar for webkit browsers (Chrome, Safari, Edge) */
+.scrollbar-thin::-webkit-scrollbar,
+.similar-questions-scroll::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track,
+.similar-questions-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9; /* Blue-50 equivalent */
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb,
+.similar-questions-scroll::-webkit-scrollbar-thumb {
+  background: #3b82f6; /* Blue-500 */
+  border-radius: 6px;
+  border: 2px solid #f1f5f9;
+  box-shadow: inset 0 0 3px rgba(0,0,0,0.1);
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover,
+.similar-questions-scroll::-webkit-scrollbar-thumb:hover {
+  background: #2563eb; /* Blue-600 */
+  box-shadow: inset 0 0 3px rgba(0,0,0,0.2);
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:active,
+.similar-questions-scroll::-webkit-scrollbar-thumb:active {
+  background: #1d4ed8; /* Blue-700 */
+}
+
+.scrollbar-thin::-webkit-scrollbar-corner,
+.similar-questions-scroll::-webkit-scrollbar-corner {
+  background: #f1f5f9;
+}
+
+/* For Firefox - use CSS scrollbar properties */
+.scrollbar-thin,
+.similar-questions-scroll {
+  scrollbar-width: auto;
+  scrollbar-color: #3b82f6 #f1f5f9;
+}
+
+/* Focus outline for accessibility */
+.scrollbar-thin:focus-within,
+.similar-questions-scroll:focus-within {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Force scrollbar to always be visible for similar questions */
+.similar-questions-scroll {
+  overflow-y: scroll !important;
+}
+
+/* Make scrollbar very visible and functional */
+.similar-questions-scroll::-webkit-scrollbar {
+  width: 16px !important;
+  height: 16px !important;
+  display: block !important;
+}
+
+.similar-questions-scroll::-webkit-scrollbar-track {
+  background: #d1d5db !important;
+  border-radius: 10px !important;
+  box-shadow: inset 0 0 6px rgba(0,0,0,0.2) !important;
+  border: 2px solid #f3f4f6 !important;
+}
+
+.similar-questions-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #2563eb, #1d4ed8) !important;
+  border-radius: 10px !important;
+  border: 3px solid #d1d5db !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important;
+  min-height: 30px !important;
+}
+
+.similar-questions-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #1d4ed8, #1e40af) !important;
+  transform: scale(1.1);
+  border: 2px solid #9ca3af !important;
+}
+
+.similar-questions-scroll::-webkit-scrollbar-thumb:active {
+  background: #1e40af !important;
+  transform: scale(0.95);
+}
