@@ -70,16 +70,16 @@ class FabricAIService:
         if self.azure_config:
             try:
                 # Import OpenAI library (only if we need it)
-                import openai
+                from openai import AzureOpenAI
                 
-                # Configure OpenAI client for Azure
-                openai.api_type = "azure"                           # Use Azure OpenAI service
-                openai.api_base = self.azure_config['endpoint']     # Azure endpoint URL
-                openai.api_version = self.azure_config['api_version']  # API version
-                openai.api_key = self.azure_config['api_key']       # Authentication key
+                # Create Azure OpenAI client using new v1.x syntax
+                # Only use essential parameters to avoid compatibility issues
+                self.azure_client = AzureOpenAI(
+                    api_key=self.azure_config['api_key'],
+                    api_version=self.azure_config['api_version'],
+                    azure_endpoint=self.azure_config['endpoint']
+                )
                 
-                # Store the configured client for later use
-                self.azure_client = openai
                 logger.info("✅ Azure OpenAI client initialized for supplementary features")
                 
             except ImportError:
@@ -366,15 +366,15 @@ class FabricAIService:
             return self._generate_mock_embedding(text)
             
         try:
-            # Use Azure OpenAI to generate embedding
-            response = self.azure_client.Embedding.create(
-                engine=self.azure_config['embedding_model'],  # Model deployment name
-                input=text.strip(),                            # Clean input text
+            # Use Azure OpenAI to generate embedding with new v1.x syntax
+            response = self.azure_client.embeddings.create(
+                model=self.azure_config['embedding_model'],  # Model deployment name
+                input=text.strip(),                           # Clean input text
                 timeout=self.azure_config.get('request_timeout', 30)  # Request timeout
             )
             
             # Extract the embedding vector from the response
-            vector = response['data'][0]['embedding']
+            vector = response.data[0].embedding
             
             # Convert to binary format for consistency with Fabric
             binary_vector = struct.pack(f'{len(vector)}f', *vector)
@@ -572,7 +572,7 @@ class FabricAIService:
                 # Fabric AI optimized similarity query
                 # Uses VECTOR_DISTANCE for efficient nearest neighbor search
                 similarity_query = """
-                    SELECT 
+                    SELECT TOP %s
                         q.id,
                         q.text,
                         q.author_id,
@@ -596,12 +596,10 @@ class FabricAIService:
                     FROM api_question q
                     WHERE q.event_id = %s 
                         AND q.embedding_vector IS NOT NULL
-                        AND q.fabric_ai_processed = 1
                     ORDER BY similarity_score DESC, q.upvote_count DESC
-                    LIMIT %s
                 """
                 
-                cursor.execute(similarity_query, [embedding_binary, event_id, limit + 2])  # Get extra for filtering
+                cursor.execute(similarity_query, [limit + 2, embedding_binary, event_id])  # TOP comes first in SQL Server
                 results = cursor.fetchall()
                 
                 # Process results into structured format
@@ -635,8 +633,97 @@ class FabricAIService:
                 
         except Exception as e:
             logger.error(f"❌ Fabric similarity search failed: {e}")
-            # Return empty list on error rather than raising exception
-            # This ensures the API remains stable even if AI features fail
+            logger.info("🔄 Falling back to Python-based similarity calculation...")
+            
+            # Fallback to Python-based similarity when Fabric VECTOR_DISTANCE isn't available
+            return self._find_similar_questions_python_fallback(question_text, event_id, limit)
+
+    def _find_similar_questions_python_fallback(self, question_text: str, event_id: str, limit: int = 5) -> List[Dict[str, Any]]:
+        """
+        Fallback similarity detection using Python-based cosine similarity
+        
+        This method is used when Fabric's VECTOR_DISTANCE function is not available.
+        It provides the same functionality using NumPy cosine similarity calculations.
+        
+        Args:
+            question_text: The text to find similar questions for
+            event_id: UUID of the event to search within  
+            limit: Maximum number of similar questions to return
+            
+        Returns:
+            List of dictionaries containing similar question data with similarity scores
+        """
+        try:
+            logger.info("🔄 Using Python fallback for similarity detection")
+            
+            # Generate embedding for the input question
+            embedding_binary, embedding_json = self.generate_embedding_with_fabric(question_text)
+            
+            if not embedding_json:
+                logger.warning("⚠️ Could not generate embedding for similarity search")
+                return []
+            
+            # Import numpy for similarity calculation
+            import numpy as np
+            
+            # Get all questions with embeddings from the database
+            from .models import Question
+            questions = Question.objects.filter(
+                event_id=event_id,
+                embedding_json__isnull=False
+            ).values('id', 'text', 'embedding_json', 'upvotes', 'created_at', 'author_id')
+            
+            similarities = []
+            
+            for q in questions:
+                try:
+                    # Parse the stored embedding JSON
+                    stored_embedding = json.loads(q['embedding_json'])
+                    stored_vec = np.array(stored_embedding)
+                    input_vec = np.array(embedding_json)
+                    
+                    # Calculate cosine similarity
+                    # Normalize vectors
+                    stored_norm = stored_vec / np.linalg.norm(stored_vec)
+                    input_norm = input_vec / np.linalg.norm(input_vec)
+                    
+                    # Calculate cosine similarity
+                    similarity = float(np.dot(input_norm, stored_norm))
+                    
+                    similarities.append({
+                        'id': str(q['id']),
+                        'text': q['text'],
+                        'author_id': str(q['author_id']) if q['author_id'] else None,
+                        'created_at': q['created_at'].isoformat() if q['created_at'] else None,
+                        'upvote_count': q['upvotes'] or 0,
+                        'similarity_score': round(similarity, 3),
+                        'confidence_score': None,
+                        'ai_sentiment': None,
+                        'ai_category': None,
+                        'semantic_cluster': None,
+                        'processing_method': 'python_fallback',
+                        'fabric_features_used': [
+                            'Python NumPy cosine similarity calculation',
+                            'Azure OpenAI embeddings for vector generation',
+                            'Fallback similarity detection'
+                        ]
+                    })
+                    
+                except Exception as e:
+                    logger.warning(f"⚠️ Error processing question {q['id']}: {e}")
+                    continue
+            
+            # Sort by similarity score
+            similarities.sort(key=lambda x: x['similarity_score'], reverse=True)
+            
+            # Filter by threshold and return top results
+            filtered = [s for s in similarities if s['similarity_score'] >= self.similarity_threshold]
+            
+            logger.info(f"✅ Python fallback found {len(filtered)} similar questions above threshold {self.similarity_threshold}")
+            return filtered[:limit]
+            
+        except Exception as e:
+            logger.error(f"❌ Python fallback similarity calculation failed: {e}")
             return []
 
     def cluster_questions_fabric(self, event_id: str) -> Dict[str, List[str]]:

@@ -345,10 +345,10 @@ if AZURE_OPENAI_ENABLED:
         'api_key': os.getenv('AZURE_OPENAI_API_KEY'),
         
         # API version - this determines which features are available
-        'api_version': os.getenv('AZURE_OPENAI_API_VERSION', '2024-02-01'),
+        'api_version': os.getenv('AZURE_OPENAI_API_VERSION', '2023-05-15'),
         
         # Model deployment names - these must match your Azure deployments
-        'embedding_model': os.getenv('AZURE_OPENAI_EMBEDDING_MODEL', 'text-embedding-ada-002'),
+        'embedding_model': os.getenv('AZURE_OPENAI_EMBEDDING_MODEL', 'text-embedding-ada-002-3'),
         'chat_model': os.getenv('AZURE_OPENAI_CHAT_MODEL', 'gpt-4'),
         
         # Request timeout for Azure OpenAI API calls
@@ -374,12 +374,12 @@ AI_PRIMARY_ENGINE = 'FABRIC'
 # Lower values = more loose similarity matching
 
 # Threshold for grouping questions (moderator feature)
-# 0.85 = 85% similarity required - quite strict to avoid wrong groupings
-AI_SIMILARITY_THRESHOLD = float(os.getenv('AI_SIMILARITY_THRESHOLD', '0.85'))
+# 0.70 = 70% similarity required - more permissive for better detection
+AI_SIMILARITY_THRESHOLD = float(os.getenv('AI_SIMILARITY_THRESHOLD', '0.70'))
 
 # Threshold for real-time suggestions while typing
-# 0.80 = 80% similarity - slightly lower to be more helpful to users
-AI_REALTIME_THRESHOLD = float(os.getenv('AI_REALTIME_THRESHOLD', '0.80'))
+# 0.65 = 65% similarity - lower to catch more potential duplicates
+AI_REALTIME_THRESHOLD = float(os.getenv('AI_REALTIME_THRESHOLD', '0.65'))
 
 # Maximum number of similar questions to show at once
 # Prevents UI clutter while still being helpful
