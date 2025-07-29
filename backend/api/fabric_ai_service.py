@@ -562,74 +562,14 @@ class FabricAIService:
             # Generate embedding for the input question
             embedding_binary, embedding_json = self.generate_embedding_with_fabric(question_text)
             
-            if not embedding_binary:
+            if not embedding_json:
                 logger.warning("⚠️ Could not generate embedding for similarity search - using text fallback")
                 return self._find_similar_questions_text_fallback(question_text, event_id, limit)
             
-            # Use raw SQL to leverage Fabric's native vector functions
-            # This showcases Fabric's performance advantages over traditional similarity methods
-            with connection.cursor() as cursor:
-                # Fabric AI optimized similarity query
-                # Uses VECTOR_DISTANCE for efficient nearest neighbor search
-                similarity_query = """
-                    SELECT TOP %s
-                        q.id,
-                        q.text,
-                        q.author_id,
-                        q.created_at,
-                        q.upvote_count,
-                        q.ai_confidence_score,
-                        q.ai_sentiment,
-                        q.ai_category,
-                        q.fabric_semantic_cluster,
-                        -- Use Fabric's VECTOR_DISTANCE function for optimal performance
-                        CASE 
-                            WHEN q.embedding_vector IS NOT NULL 
-                            THEN 1.0 - VECTOR_DISTANCE(q.embedding_vector, %s, 'cosine')
-                            ELSE 0.0 
-                        END as similarity_score,
-                        -- Include AI metadata for enhanced results
-                        CASE 
-                            WHEN q.fabric_ai_processed = 1 THEN 'fabric_ai'
-                            ELSE 'fallback'
-                        END as processing_method
-                    FROM api_question q
-                    WHERE q.event_id = %s 
-                        AND q.embedding_vector IS NOT NULL
-                    ORDER BY similarity_score DESC, q.upvote_count DESC
-                """
-                
-                cursor.execute(similarity_query, [limit + 2, embedding_binary, event_id])  # TOP comes first in SQL Server
-                results = cursor.fetchall()
-                
-                # Process results into structured format
-                similar_questions = []
-                for row in results:
-                    similarity_score = float(row[9]) if row[9] else 0.0
-                    
-                    # Only include questions above the similarity threshold
-                    if similarity_score >= self.similarity_threshold:
-                        similar_questions.append({
-                            'id': str(row[0]),
-                            'text': row[1],
-                            'author_id': str(row[2]) if row[2] else None,
-                            'created_at': row[3].isoformat() if row[3] else None,
-                            'upvote_count': row[4] or 0,
-                            'similarity_score': round(similarity_score, 3),
-                            'confidence_score': float(row[5]) if row[5] else None,
-                            'ai_sentiment': row[6],
-                            'ai_category': row[7],
-                            'semantic_cluster': row[8],
-                            'processing_method': row[10],
-                            'fabric_features_used': [
-                                'VECTOR_DISTANCE() for similarity calculation',
-                                'AI.EMBEDDING() for vector generation',
-                                'Semantic clustering for enhanced relevance'
-                            ]
-                        })
-                
-                logger.info(f"✅ Found {len(similar_questions)} similar questions above threshold {self.similarity_threshold}")
-                return similar_questions[:limit]  # Return only requested limit
+            # Since Fabric VECTOR_DISTANCE is not available, go directly to Python fallback
+            # This was the working logic from the successful commit
+            logger.info("🔄 Fabric AI vector functions not available, using Python fallback...")
+            return self._find_similar_questions_python_fallback(question_text, event_id, limit)
                 
         except Exception as e:
             logger.error(f"❌ Fabric similarity search failed: {e}")
@@ -885,11 +825,16 @@ class FabricAIService:
             
             # Step 6: Update the question in the database
             logger.info("💾 Updating question with AI metadata...")
+            print(f"🔧 DEBUG: About to update question {question_id} with AI fields")
+            print(f"🔧 DEBUG: embedding_binary exists: {bool(embedding_binary)}")
+            print(f"🔧 DEBUG: embedding_json exists: {bool(embedding_json)}")
+            
             self._update_question_ai_fields(
                 question_id, embedding_binary, embedding_json, 
                 sentiment, topics, category, summary, confidence_score
             )
             
+            print(f"🔧 DEBUG: Successfully called _update_question_ai_fields for question {question_id}")
             processing_results['similarity_indexed'] = True
             
             logger.info(f"✅ Fabric AI processing completed successfully for question {question_id}")
@@ -998,14 +943,17 @@ class FabricAIService:
             from django.utils import timezone
             from django.apps import apps
             
+            print(f"🔧 DEBUG: _update_question_ai_fields called for question {question_id}")
+            
             # Use Django apps registry to avoid circular imports
             Question = apps.get_model('api', 'Question')
             
             # Get the question object
             question = Question.objects.get(id=question_id)
+            print(f"🔧 DEBUG: Found question {question.id}: '{question.text[:50]}...'")
             
             # Update all AI fields
-            question.embedding_vector = embedding_binary
+            # Note: embedding_vector field was removed, only using embedding_json
             question.embedding_json = json.dumps(embedding_json) if embedding_json else None
             question.ai_sentiment = sentiment
             question.ai_topics = json.dumps(topics)
@@ -1016,12 +964,18 @@ class FabricAIService:
             question.fabric_similarity_indexed = True
             question.ai_processing_completed_at = timezone.now()
             
+            print(f"🔧 DEBUG: About to save question {question_id} with embedding_json: {bool(question.embedding_json)}")
+            
             # Save the changes
             question.save()
             
+            print(f"🔧 DEBUG: Successfully saved question {question_id}")
             logger.info(f"✅ Updated question {question_id} with AI metadata")
             
         except Exception as e:
+            print(f"🔧 DEBUG: ERROR in _update_question_ai_fields: {e}")
+            import traceback
+            print(f"🔧 DEBUG: Full traceback: {traceback.format_exc()}")
             logger.error(f"Failed to update question AI fields: {e}")
             raise
 

@@ -384,6 +384,10 @@ class QuestionListCreateView(generics.ListCreateAPIView):
         This enhanced version automatically processes new questions with Fabric AI
         to generate embeddings, summaries, and metadata for immediate use.
         """
+        print("🚀 DEBUG: perform_create called!")
+        import sys
+        sys.stdout.flush()
+        
         # Get the event from the URL parameter
         event_id = self.kwargs['event_id']
         event = get_object_or_404(Event, id=event_id)
@@ -410,6 +414,7 @@ class QuestionListCreateView(generics.ListCreateAPIView):
         
         # Process the question with Fabric AI in the background
         try:
+            print(f"🤖 DEBUG: Starting Fabric AI processing for new question {question.id}")
             logger.info(f"Starting Fabric AI processing for new question {question.id}")
             
             # Run comprehensive Fabric AI processing
@@ -418,15 +423,26 @@ class QuestionListCreateView(generics.ListCreateAPIView):
                 question_text
             )
             
+            print(f"🤖 DEBUG: AI processing results: {ai_results}")
+            
+            # Refresh the question from database to get the AI updates
+            question.refresh_from_db()
+            
             # Record successful completion
             question.ai_processing_completed_at = timezone.now()
             question.save()
             
+            print(f"✅ DEBUG: Fabric AI processing completed for question {question.id}")
+            print(f"✅ DEBUG: Question now has embedding: {bool(question.embedding_json)}")
+            print(f"✅ DEBUG: Question AI processed: {question.fabric_ai_processed}")
             logger.info(f"✅ Fabric AI processing completed for question {question.id}")
             
         except Exception as e:
             # Log AI processing errors but don't fail the question creation
+            print(f"❌ DEBUG: Fabric AI processing failed for question {question.id}: {e}")
             logger.error(f"❌ Fabric AI processing failed for question {question.id}: {e}")
+            import traceback
+            print(f"❌ DEBUG: Full traceback: {traceback.format_exc()}")
             
             # Record the error for debugging
             question.ai_processing_error = str(e)

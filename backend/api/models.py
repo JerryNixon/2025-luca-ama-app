@@ -212,14 +212,8 @@ class Question(models.Model):
     # FABRIC AI FIELDS - Native Integration with Microsoft Fabric AI
     # ==========================================================================
     
-    # Primary embedding storage using Fabric's native vector format
-    # This field stores the embedding in binary format optimized for Fabric's VECTOR_DISTANCE function
-    # Binary storage is more efficient than JSON for large-scale operations
-    embedding_vector = models.BinaryField(
-        null=True,                              # Allow null for questions not yet processed
-        blank=True,                             # Allow empty in forms
-        help_text="Fabric native vector embedding in binary format for optimal performance"
-    )
+    # Note: embedding_vector field removed - not present in database
+    # The working functionality uses embedding_json which exists in the database
     
     # Backup embedding storage in JSON format
     # This provides compatibility with external tools and easier debugging
@@ -375,7 +369,7 @@ class Question(models.Model):
         Returns:
             Boolean indicating whether the question can be used for similarity matching
         """
-        return bool(self.embedding_vector and self.fabric_ai_processed)
+        return bool(self.embedding_json and self.fabric_ai_processed)
     
     def get_similarity_metadata(self):
         """

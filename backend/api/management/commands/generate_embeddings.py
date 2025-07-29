@@ -78,7 +78,7 @@ class Command(BaseCommand):
                 query = query.filter(
                     fabric_ai_processed=False
                 ).filter(
-                    embedding_vector__isnull=True
+                    embedding_json__isnull=True
                 )
                 self.stdout.write("📋 Processing only questions without embeddings")
             else:
@@ -142,7 +142,7 @@ class Command(BaseCommand):
                         if embedding_binary:
                             # Update question with embedding data
                             with transaction.atomic():
-                                question.embedding_vector = embedding_binary
+                                # Note: embedding_vector field was removed, only using embedding_json
                                 question.embedding_json = str(embedding_json) if embedding_json else None
                                 question.fabric_ai_processed = True
                                 question.fabric_similarity_indexed = True
